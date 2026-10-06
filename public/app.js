@@ -269,6 +269,17 @@ function newChat() {
   if (!touch) input.focus();
 }
 
+function focusInput() {
+  // From Shortcuts, the composer only shows once the chat view is back (on hashchange).
+  if (state.view !== 'chat') {
+    addEventListener('hashchange', focusInput, { once: true });
+    return go(state.chatId);
+  }
+  hidePopovers();
+  if (narrow()) setDrawer(false);
+  input.focus();
+}
+
 const current = () => state.chats.find((c) => c.id === state.chatId);
 
 const renameChat = (id, title) => api('PATCH', `/api/chats/${id}`, { title });
@@ -677,6 +688,13 @@ const SHORTCUTS = [
     note: 'The chat in the notice, or the newest unread one',
     match: (e) => mod(e) && !e.shiftKey && e.code === 'KeyJ',
     run: () => openReply(),
+  },
+  {
+    id: 'input',
+    keys: [`${MOD}K`],
+    label: 'Go to the message box',
+    match: (e) => mod(e) && !e.shiftKey && e.code === 'KeyK',
+    run: () => focusInput(),
   },
   {
     id: 'shortcuts',

@@ -139,7 +139,7 @@ to a generic card.
   double-click rename and focus). Hold re-renders while an inline rename is
   open.
 - Shortcuts are one table per page (chat: `SHORTCUTS` in `app.js`, also drives
-  the Shortcuts screen). Chat: ⌘1–9, ⌃⌘N, ⌘B, ⌘J, ⌘/. Terminal: ⌘1–9, ⌃⌘N, ⌘B,
+  the Shortcuts screen). Chat: ⌘1–9, ⌃⌘N, ⌘B, ⌘J, ⌘K, ⌘/. Terminal: ⌘1–9, ⌃⌘N, ⌘B,
   ⌘E — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E
   belong to the shell. ⌘N/⌘T/⌘W never reach a page in a Chrome tab (reserved),
   only in the installed app's window (Chrome reserves no keys for apps): ⌘N is

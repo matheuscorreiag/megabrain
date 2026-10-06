@@ -62,6 +62,7 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   | ⌘N (installed app) or ⌃⌘N | new chat |
   | ⌘B | show / hide the sidebar |
   | ⌘J | open the latest reply (the notice's chat, or the newest unread) |
+  | ⌘K | go to the message box |
   | ⌘/ | Shortcuts screen |
   | Enter / ⇧Enter | send / new line |
   | Esc | stop the agent |
