@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#161616" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Terminal</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/vendor/xterm.css" />
+    <link rel="stylesheet" href="/terminal/style.css" />
+  </head>
+  <body>
+    <header id="topbar">
+      <button id="toggle-files" class="icon-btn" title="Files" aria-label="Files">☰</button>
+      <nav id="tabs" role="tablist"></nav>
+      <button id="new-tab" class="icon-btn" title="New terminal (in the folder open in Files)" aria-label="New terminal">＋</button>
+    </header>
+
+    <div id="layout">
+      <aside id="files" aria-label="Files">
+        <div class="files-head">
+          <div id="crumbs"></div>
+          <div class="files-actions">
+            <button data-act="up" title="Parent folder">↑</button>
+            <button data-act="refresh" title="Refresh">⟳</button>
+            <button data-act="new-file" title="New file">+ file</button>
+            <button data-act="new-dir" title="New folder">+ folder</button>
+            <button data-act="upload" title="Upload files">⤒ upload</button>
+            <button data-act="term-here" title="New terminal in this folder">$ terminal here</button>
+            <label class="toggle"><input type="checkbox" id="show-hidden" /> hidden</label>
+          </div>
+        </div>
+        <ul id="file-list"></ul>
+        <input type="file" id="upload-input" multiple hidden />
+        <div id="drop-hint">Drop to upload to this folder</div>
+      </aside>
+
+      <main id="terms">
+        <div id="empty">
+          <p>No terminals open.</p>
+          <button id="empty-new" class="primary">$ New terminal</button>
+        </div>
+      </main>
+    </div>
+
+    <footer id="keys">
+      <button data-key="esc">Esc</button>
+      <button data-key="tab">Tab</button>
+      <button data-key="stab" title="Shift+Tab">⇧Tab</button>
+      <button data-key="ctrlc">^C</button>
+      <button data-key="up">↑</button>
+      <button data-key="down">↓</button>
+      <button data-key="left">←</button>
+      <button data-key="right">→</button>
+      <button data-key="enter">⏎</button>
+      <button data-scroll="up" title="Scroll up">⇞</button>
+      <button data-scroll="down" title="Scroll down">⇟</button>
+    </footer>
+
+    <dialog id="editor">
+      <div class="editor-head">
+        <strong id="editor-name"></strong>
+        <span id="editor-status"></span>
+      </div>
+      <textarea id="editor-text" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <div class="dialog-actions">
+        <button id="editor-download">Download</button>
+        <span class="spacer"></span>
+        <button id="editor-close">Close</button>
+        <button id="editor-save" class="primary">Save</button>
+      </div>
+    </dialog>
+
+    <div id="menu" hidden></div>
+    <div id="toast" hidden></div>
+
+    <script type="module" src="/terminal/app.js"></script>
+  </body>
+</html>

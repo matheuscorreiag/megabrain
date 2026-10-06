@@ -1,0 +1,19 @@
+{
+  "port": 7680,
+  "host": "127.0.0.1",
+  "root": "~",
+  "workdir": "~",
+  "shell": "/bin/zsh",
+  "allowedLogins": [],
+  "dataDir": "~/.term-hub",
+  "agent": {
+    "type": "claude",
+    "command": "claude",
+    "cwd": "~",
+    "args": [
+      "--dangerously-skip-permissions"
+    ],
+    "model": null,
+    "idleMinutes": 30
+  }
+}

@@ -1,0 +1,454 @@
+:root {
+  --bg: #161616;
+  --panel: #1d1d1d;
+  --raised: #262626;
+  --line: #2f2f2f;
+  --text: #e6e6e6;
+  --muted: #9a9a9a;
+  --accent: #6ea8fe;
+  --accent-text: #0d1626;
+  --danger: #e5604f;
+  --term-bg: #121212;
+  --app-h: 100dvh;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Author `display` rules would otherwise beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: var(--app-h);
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+button:hover {
+  border-color: #444;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  padding: 6px 10px;
+  color: var(--muted);
+}
+.icon-btn:hover {
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------ top bar */
+
+#topbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  min-height: 40px;
+}
+#tabs {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#tabs::-webkit-scrollbar {
+  display: none;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 0 6px 0 12px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.tab.active {
+  background: var(--term-bg);
+  color: var(--text);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.tab .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+}
+.tab .dot.connecting {
+  background: #c9a227;
+}
+.tab .dot.offline {
+  background: var(--danger);
+}
+.tab .close {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+}
+.tab .close:hover {
+  color: var(--danger);
+}
+
+/* ------------------------------------------------------------- layout */
+
+#layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 0;
+}
+body.files-hidden #layout {
+  grid-template-columns: 0 1fr;
+}
+body.files-hidden #files {
+  visibility: hidden;
+}
+
+#terms {
+  position: relative;
+  background: var(--term-bg);
+  min-width: 0;
+  min-height: 0;
+}
+.term {
+  position: absolute;
+  inset: 6px 4px 4px 8px;
+  display: none;
+}
+.term.active {
+  display: block;
+}
+
+#empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------- files */
+
+#files {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  min-height: 0;
+  overflow: hidden;
+}
+.files-head {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+#crumbs {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+#crumbs a {
+  color: var(--text);
+  cursor: pointer;
+}
+#crumbs a:hover {
+  color: var(--accent);
+}
+.files-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.files-actions button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.toggle {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+#file-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+#file-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 12px;
+  cursor: pointer;
+}
+#file-list li:hover {
+  background: var(--raised);
+}
+#file-list .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#file-list .dir .name {
+  font-weight: 500;
+}
+#file-list .hidden-file .name {
+  color: var(--muted);
+}
+#file-list .meta {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+#file-list .more {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0 6px;
+  font-size: 16px;
+}
+#file-list .msg {
+  color: var(--muted);
+  cursor: default;
+}
+#file-list .msg:hover {
+  background: none;
+}
+
+#drop-hint {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-content: center;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 2px dashed var(--accent);
+  color: var(--text);
+  font-weight: 600;
+  pointer-events: none;
+}
+#files.dragging #drop-hint {
+  display: grid;
+}
+
+/* ------------------------------------------------- touch key strip */
+
+#keys {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+}
+#keys button {
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 11px;
+  flex-shrink: 0;
+}
+/* Mouse users have real keys and a wheel; the strip is for touch screens. */
+@media (pointer: fine) {
+  #keys {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ dialogs */
+
+dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.spacer {
+  flex: 1;
+}
+
+#editor {
+  width: min(960px, calc(100vw - 24px));
+  height: min(80vh, calc(var(--app-h) - 24px));
+  max-height: none;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+#editor[open] {
+  display: flex;
+}
+.editor-head {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow: hidden;
+}
+#editor-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#editor-status {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+#editor-text {
+  flex: 1;
+  resize: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  tab-size: 2;
+  white-space: pre;
+}
+
+#menu {
+  position: fixed;
+  z-index: 20;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 190px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  display: grid;
+}
+#menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 10px;
+}
+#menu button:hover {
+  background: var(--panel);
+}
+#menu button.danger {
+  color: var(--danger);
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  z-index: 30;
+  max-width: calc(100vw - 32px);
+}
+#toast.error {
+  border-color: var(--danger);
+}
+
+/* -------------------------------------------------------------- mobile */
+
+@media (max-width: 760px) {
+  #layout,
+  body.files-hidden #layout {
+    grid-template-columns: 1fr;
+  }
+  #files {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    border-right: none;
+  }
+  #file-list li {
+    padding: 9px 6px 9px 14px;
+  }
+  .tab {
+    max-width: 160px;
+  }
+  .term {
+    inset: 4px 2px 2px 4px;
+  }
+}
