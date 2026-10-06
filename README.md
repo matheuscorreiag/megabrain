@@ -151,6 +151,37 @@ Turn off in the sidebar lifts that without stopping the process.
 
 On the phone: Tailscale app connected → open the URL → "Add to Home Screen".
 
+## macOS app (`macos/`)
+
+A small native app (Swift: AppKit + WebKit) around the same UI, for everyday
+use on a Mac — the browser stays for everything else (phone, Windows…):
+
+- **Every ⌘ shortcut** — ⌘N, ⌘W, ⌘1…⌘9, all of them; no browser keeps any.
+  They're in the menus too (File, View, Go).
+- **Notifications** when a chat replies while the app isn't in front, and the
+  unread count on the **Dock icon** — also with the window closed (closing
+  only hides it; the app stays in the menu bar). Click one to open the chat.
+- **Menu-bar item**: whether the server is on; on the server's own Mac, Turn On
+  / Turn Off, and Start Server if the process isn't running at all.
+- **Settings** (⌘,): This Mac, or Another Mac by its Tailscale URL; open at login.
+
+**Download** it from the repo's [Releases](../../releases) (`Hub-macOS-<version>.zip`,
+Apple silicon and Intel, macOS 14+), or build it:
+
+```bash
+macos/build.sh                        # builds and installs /Applications/Hub.app (Xcode or its Command Line Tools)
+macos/release.sh                      # publishes macos/VERSION as a GitHub release (commit and push first)
+```
+
+It's signed ad hoc (no Apple developer account), so a downloaded copy is
+blocked the first time: System Settings → Privacy & Security → Open Anyway.
+
+**Another Mac** connects as a client — everything still runs on the server's
+Mac. Sign it into Tailscale with a login in `allowedLogins`, open the app
+(it sees there's no server on that Mac and offers **Connect to Another
+Mac…**), and enter `https://<mac>.<tailnet>.ts.net`. Turn On / Off only show
+on the server's Mac.
+
 ## Security
 
 - With `--dangerously-skip-permissions` the agent runs any command without

@@ -73,6 +73,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `public/terminal/*` | terminal page |
 | `bin/hub` | open the same tmux tabs over SSH |
 | `scripts/launchd.sh` | install / start / stop / restart / uninstall the launchd agent |
+| `macos/` | the macOS app (Swift package, `build.sh`); see below |
 
 ### Chat engine
 
@@ -128,6 +129,40 @@ to a generic card.
 - The Files API is confined to `config.root` (symlinks resolved); "delete" moves
   to the macOS Trash.
 
+### macOS app
+
+- `macos/` builds `Hub.app` (`macos/build.sh`; SwiftPM, no Xcode project). It
+  is a client like a browser: a WKWebView on the panel's URL (This Mac =
+  `http://127.0.0.1:7680`, or another Mac's Tailscale URL), so the UI stays one
+  codebase. Native code only adds what a tab can't do. The bundle has to be
+  called something ("Hub"); the UI inside still shows no name.
+- The page knows it's inside through the `hub` message handler (`native` in
+  ui.js: standalone-style ⌘N hints, and it posts `{ op: 'power', on }`). The
+  app's own pages ("Not running") post `start` / `retry`.
+- **Shortcuts**: the page gets ⌘-keys first (WKWebView hands key equivalents to
+  the focused page before the menus); every page shortcut also has a menu item
+  that dispatches the same keydown into the page, so the page's tables stay
+  the source of truth. Add new page shortcuts to `mainMenu()` too.
+- **Notifications / badge** come from the app's own `/ws/chat` socket (the
+  same `chats` broadcast), not the page, so they work on the terminal page and
+  with the window closed. That socket never sends `visibility`, so it never
+  marks a chat read. In front, the page's notice covers it (no banner).
+- Closing the window hides it; external links and `target=_blank` open in the
+  default browser; confirm/prompt/file inputs/downloads get native panels.
+- **Test**: `macos/build.sh --debug` builds `Hub-debug.app` (own bundle id) with
+  `SelfTest.swift`; run `macos/.build/Hub-debug.app/Contents/MacOS/Hub -selfTest
+  <dir> -localPort 7681` against a test server. It sends real ⌘-key events
+  through AppKit, flips the power switch, goes through the native confirm and
+  writes `results.txt` plus snapshots (screen capture isn't available to an
+  agent, the web view's snapshot is). It refuses port 7680. A window and a
+  menu-bar icon appear while it runs. `-launchdLabel com.example.none` plays a
+  Mac without a server (the "Connect to Another Mac…" page).
+- **Releases**: bump `macos/VERSION`, commit and push, then `macos/release.sh`
+  builds a universal (arm64 + x86_64) `Hub.app`, zips it with `ditto` (keeps the
+  bundle and signature) and creates the GitHub release `macos-v<VERSION>` with
+  the zip. Ad hoc signed: downloads need "Open Anyway" once; notarizing would
+  need a paid Apple developer account.
+
 ## Conventions
 
 - Node ≥ 20, ESM, **no build step, no framework**: vanilla JS modules served
@@ -149,7 +184,8 @@ to a generic card.
   belong to the shell. ⌘N/⌘T/⌘W never reach a page in a Chrome tab (reserved),
   only in the installed app's window (Chrome reserves no keys for apps): ⌘N is
   "new chat / new terminal" there, and ⌃⌘N stays as the fallback that works in
-  tabs. Don't rely on ⌘T/⌘W.
+  tabs. Don't rely on ⌘T/⌘W in the browser; in the macOS app ⌘W closes (hides)
+  the window.
 
 ## Security model
 
@@ -246,6 +282,12 @@ HUB_CONFIG=/path/to/test-config.json node server.js
   `CLAUDE*`/`CMUX*`/`TMUX*` env vars — `cleanEnv()` strips them.
 - The launchd plist bakes in the current `node` path (nvm); re-run
   `scripts/launchd.sh install` after switching Node versions.
+- **WKWebView**: `evaluateJavaScript` doesn't await promises (use
+  `callAsyncJavaScript`); WebKit refuses some ports outright (e.g. 9), so test
+  "unreachable" with a closed ordinary port; `innerText` follows CSS
+  `text-transform`. Delegate methods must match the SDK's signatures exactly
+  (`@MainActor @Sendable` handlers) or AppKit never calls them — a clean build
+  must show no "nearly matches" warnings.
 
 ## Data and persistence
 

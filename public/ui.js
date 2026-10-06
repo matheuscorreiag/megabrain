@@ -8,9 +8,13 @@ export const touch = matchMedia('(pointer: coarse)').matches;
 export const narrow = () => matchMedia('(max-width: 800px)').matches;
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD = isMac ? '⌘' : 'Ctrl+';
-// The installed app's window. Only there do ⌘N / ⌘T / ⌘W reach the page:
-// in a browser tab Chrome keeps them (new window, tab, close).
-export const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// Inside the macOS app (macos/): it registers this handler and wants to hear
+// about on / off.
+const hub = window.webkit?.messageHandlers?.hub;
+export const native = hub ? (msg) => hub.postMessage(msg) : null;
+// The installed app's window, or the macOS app. Only there do ⌘N / ⌘T / ⌘W
+// reach the page: in a browser tab Chrome keeps them (new window, tab, close).
+export const standalone = Boolean(native) || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);

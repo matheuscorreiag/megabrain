@@ -5,7 +5,7 @@
 
 import { Thread } from '/render.js';
 import { createLoader } from '/loader.js';
-import { $, h, touch, narrow, isMac, MOD, standalone, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
+import { $, h, touch, narrow, isMac, MOD, standalone, native, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
 const local = storage('chat'); // last chat, unsent drafts, settings for new chats
@@ -762,6 +762,7 @@ function showOff() {
   document.title = 'Turned off';
   if (state.off) return;
   state.off = true;
+  native?.({ op: 'power', on: false });
   clearTimeout(retryTimer);
   ws?.close();
   hidePopovers();
@@ -790,6 +791,7 @@ $('#turn-on').addEventListener('click', async () => {
     return fail(err);
   }
   clearInterval(offPoll);
+  native?.({ op: 'power', on: true });
   location.reload();
 });
 
