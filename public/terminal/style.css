@@ -7,7 +7,7 @@
   grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
-  transition: grid-template-columns 0.26s cubic-bezier(0.3, 0.7, 0.2, 1);
+  transition: grid-template-columns 0.26s var(--ease);
 }
 body.files-open #main {
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -22,20 +22,29 @@ body.files-open #main {
   min-width: 0;
   min-height: 0;
 }
+/* Each terminal is a framed screen. content-box: the fit addon measures
+   this element's height and width, which then exclude the inner spacing;
+   the frame is a shadow, so it takes no room either. */
 .term {
   position: absolute;
-  inset: calc(12px + env(safe-area-inset-top)) 8px 8px 14px;
+  inset: calc(12px + env(safe-area-inset-top)) 12px 12px 12px;
+  box-sizing: content-box;
+  padding: 10px 6px 8px 12px;
   display: none;
+  border-radius: 8px;
+  background: var(--code-bg);
+  box-shadow: 0 0 0 1px var(--line-soft), 0 24px 50px -24px rgb(0 0 0 / 0.7);
 }
 /* Leave room for the floating sidebar toggle. */
 body.sidebar-collapsed .term {
-  top: calc(56px + env(safe-area-inset-top));
+  top: calc(58px + env(safe-area-inset-top));
 }
 .term.active {
   display: block;
 }
 .term .xterm-viewport {
   scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 
 #empty {
@@ -49,6 +58,7 @@ body.sidebar-collapsed .term {
 }
 #empty .side-btn {
   width: auto;
+  padding-right: 16px;
 }
 
 /* ---------------------------------------------------------------- files */
@@ -63,8 +73,8 @@ body.sidebar-collapsed .term {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  background: var(--panel);
-  border-left: 1px solid var(--line);
+  background: var(--grain), var(--panel);
+  border-left: 1px solid var(--line-soft);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0s linear 0.26s;
@@ -79,33 +89,42 @@ body.files-open #files {
 }
 .files-head {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
 }
 .files-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 36px;
-  font-size: 14px;
+  padding-left: 4px;
+}
+.files-title .label {
+  color: var(--muted);
 }
 .icon-btn.small {
   font-size: 20px;
   padding: 4px 10px;
 }
 #crumbs {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--muted);
+  font: 11px/1.6 var(--mono);
+  color: var(--faint);
+  padding: 6px 9px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: var(--bg);
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: none;
 }
 #crumbs a {
-  color: var(--text);
+  color: var(--muted);
   text-decoration: none;
   cursor: pointer;
+}
+#crumbs a:last-child {
+  color: var(--text);
 }
 #crumbs a:hover {
   color: var(--accent);
@@ -122,9 +141,9 @@ body.files-open #files {
   height: 32px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: none;
-  color: var(--muted);
+  color: var(--faint);
 }
 .files-actions button:hover {
   color: var(--text);
@@ -132,21 +151,23 @@ body.files-open #files {
 }
 .files-actions svg,
 #file-list svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .toggle {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-left: auto;
-  font-size: 12px;
-  color: var(--muted);
+  font: 10px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
 #file-list {
@@ -155,14 +176,16 @@ body.files-open #files {
   margin: 0;
   padding: 6px 8px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 #file-list li {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 4px 0 8px;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
 }
@@ -172,10 +195,13 @@ body.files-open #files {
 #file-list .icon {
   display: grid;
   place-items: center;
-  color: var(--muted);
+  color: var(--faint);
 }
 #file-list .dir .icon {
   color: var(--accent);
+}
+#file-list .dir .name {
+  font-weight: 500;
 }
 #file-list .name {
   flex: 1;
@@ -185,11 +211,11 @@ body.files-open #files {
   white-space: nowrap;
 }
 #file-list .hidden-file .name {
-  color: var(--muted);
+  color: var(--faint);
 }
 #file-list .meta {
-  color: var(--muted);
-  font-size: 11px;
+  color: var(--faint);
+  font: 10px/1 var(--mono);
   font-variant-numeric: tabular-nums;
 }
 #file-list .more {
@@ -199,7 +225,7 @@ body.files-open #files {
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: 7px;
+  border-radius: 5px;
   background: none;
   color: var(--muted);
   opacity: 0;
@@ -217,7 +243,8 @@ body.files-open #files {
   background: color-mix(in oklab, var(--text) 8%, transparent);
 }
 #file-list .msg {
-  color: var(--muted);
+  color: var(--faint);
+  font: 11px/1 var(--mono);
   cursor: default;
 }
 #file-list .msg:hover {
@@ -234,12 +261,16 @@ body.files-open #files {
 
 #drop-hint {
   position: absolute;
-  inset: 0;
+  inset: 8px;
   display: none;
   place-content: center;
-  background: color-mix(in oklab, var(--accent) 16%, transparent);
-  border: 2px dashed var(--accent);
-  font-weight: 600;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  border: 1px dashed var(--accent);
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
   pointer-events: none;
 }
 #files.dragging #drop-hint {
@@ -256,20 +287,27 @@ body.files-open #files {
   overflow-x: auto;
   scrollbar-width: none;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--panel);
+  border-top: 1px solid var(--line-soft);
+  background: var(--grain), var(--panel);
 }
+/* Keycaps. */
 #keys button {
   flex-shrink: 0;
-  min-width: 40px;
+  min-width: 42px;
   padding: 7px 11px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-bottom-width: 3px;
+  border-radius: 7px;
   background: var(--raised);
-  font: 13px var(--mono);
+  color: var(--text);
+  font: 500 12px/1.2 var(--mono);
 }
 #keys button:active {
+  transform: translateY(2px);
+  border-bottom-width: 1px;
+  margin-bottom: 2px;
   border-color: var(--accent);
+  color: var(--accent);
 }
 @media (pointer: fine) {
   #keys {
@@ -285,48 +323,61 @@ body.files-open #files {
   max-height: none;
   display: none;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
   color: var(--text);
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 10px;
   box-shadow: var(--shadow);
 }
 #editor[open] {
   display: flex;
 }
 #editor::backdrop {
-  background: rgb(0 0 0 / 0.5);
+  background: rgb(0 0 0 / 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .editor-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   overflow: hidden;
-  font: 13px var(--mono);
+  padding: 2px 4px 0;
+  font: 11.5px/1.4 var(--mono);
+}
+.editor-head::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 #editor-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 #editor-status {
   margin-left: auto;
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--faint);
+  font-size: 10.5px;
   white-space: nowrap;
 }
 #editor-text {
   flex: 1;
   resize: none;
-  padding: 12px;
+  padding: 14px;
   color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
   outline: none;
-  font: 13px/1.5 var(--mono);
+  font: 12.5px/1.6 var(--mono);
+  font-stretch: 87.5%;
   tab-size: 2;
   white-space: pre;
 }
@@ -340,6 +391,18 @@ body.files-open #files {
 }
 .dialog-actions .side-btn {
   width: auto;
+  border-color: var(--line);
+  color: var(--text);
+}
+.dialog-actions .side-btn.primary {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 0 18px;
+}
+.dialog-actions .side-btn.primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, var(--text));
 }
 .spacer {
   flex: 1;
@@ -359,18 +422,19 @@ body.files-open #files {
     z-index: 18;
     border-left: none;
     transform: translateX(100%);
-    transition: transform 0.26s cubic-bezier(0.3, 0.7, 0.2, 1), visibility 0s linear 0.26s;
+    transition: transform 0.26s var(--ease), visibility 0s linear 0.26s;
   }
   #files > * {
     min-width: 0;
   }
   body.files-open #files {
     transform: none;
-    transition: transform 0.26s cubic-bezier(0.3, 0.7, 0.2, 1);
+    transition: transform 0.26s var(--ease);
   }
   .term,
   body.sidebar-collapsed .term {
-    inset: calc(56px + env(safe-area-inset-top)) 4px 4px 6px;
+    inset: calc(58px + env(safe-area-inset-top)) 6px 6px 6px;
+    padding: 8px 4px 6px 8px;
   }
 }
 

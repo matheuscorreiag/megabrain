@@ -5,7 +5,7 @@
 import { Terminal } from '/vendor/xterm.mjs';
 import { FitAddon } from '/vendor/addon-fit.mjs';
 import { WebLinksAddon } from '/vendor/addon-web-links.mjs';
-import { $, h, touch, narrow, isMac, api, storage, toast, fail, showMenu, editInline, setupSidebar, setConn, accentFor, initial, MORE_ICON } from '/ui.js';
+import { $, h, touch, narrow, isMac, standalone, api, storage, toast, fail, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
 
 const local = storage('terminal'); // active tab, last folder, panels
 let config = { root: '/', workdir: '/', home: '/', hostname: '' };
@@ -26,16 +26,6 @@ const shellQuote = (s) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, 
 // Terminals have no stored color: the hue comes from the id, so a tab looks
 // the same on every device.
 const hueOf = (id) => Math.round((parseInt(id.slice(0, 6), 16) * 137.508) % 360);
-
-// xterm.js only understands sRGB colors; let a canvas convert oklch().
-const swatch = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-function toHex(color) {
-  swatch.clearRect(0, 0, 1, 1);
-  swatch.fillStyle = color;
-  swatch.fillRect(0, 0, 1, 1);
-  const [r, g, b] = swatch.getImageData(0, 0, 1, 1).data;
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-}
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -148,17 +138,18 @@ function renderList() {
     item.el.classList.toggle('active', tab.id === activeId);
     item.el.style.setProperty('--item-accent', accentFor(hueOf(tab.id)));
     item.el.title = `${tab.title}\n${path}${i < 9 ? `  (${TMOD}${i + 1})` : ''}`;
-    item.avatar.textContent = tab.renamed ? initial(tab.title) : '$';
+    item.avatar.textContent = indexLabel(i);
     item.name.textContent = tab.title;
     item.sub.textContent = tab.clients > 1 ? `${path} · ${tab.clients} devices` : path;
     item.kbd.textContent = i < 9 ? `${TMOD}${i + 1}` : '';
     item.kbd.hidden = i >= 9;
     nav.append(item.el);
   });
+  $('#tab-count').textContent = tabs.length ? indexLabel(tabs.length - 1) : '';
   $('#empty').hidden = tabs.length > 0;
   const active = tabs.find((t) => t.id === activeId);
   document.title = active ? active.title : 'Terminal';
-  document.documentElement.style.setProperty('--accent', accentFor(active ? hueOf(active.id) : undefined));
+  setHue(active ? hueOf(active.id) : undefined);
 }
 
 // ------------------------------------------------------------------- tabs
@@ -227,7 +218,9 @@ function ensureView(tab) {
   if (view) return view;
   const el = h('div', { class: 'term' });
   $('#terms').append(el);
-  const accent = toHex(accentFor(hueOf(tab.id)));
+  const hue = hueOf(tab.id);
+  const accent = toHex(accentFor(hue));
+  const background = toHex(`oklch(0.13 0.011 ${hue})`); // --code-bg in base.css
   const term = new Terminal({
     fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
     fontSize: narrow() ? 12 : 13,
@@ -236,7 +229,7 @@ function ensureView(tab) {
     scrollback: 2000,
     macOptionIsMeta: true,
     macOptionClickForcesSelection: true,
-    theme: { background: '#1c1d20', foreground: '#ecedef', cursor: accent, cursorAccent: '#1c1d20', selectionBackground: `${accent}55` },
+    theme: { background, foreground: toHex(`oklch(0.93 0.01 ${hue})`), cursor: accent, cursorAccent: background, selectionBackground: `${accent}55` },
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
@@ -320,6 +313,23 @@ document.addEventListener('visibilitychange', () => {
 // Titles follow whatever runs in each tab, so keep the list fresh.
 setInterval(() => !document.hidden && refreshTabs(), 3000);
 
+// Chats that replied meanwhile: a count on "Back to chats" (and on the
+// floating toggle while the sidebar is closed).
+async function refreshUnread() {
+  let n = 0;
+  try {
+    n = (await api('GET', '/api/chats')).filter((c) => c.unread).length;
+  } catch {
+    return;
+  }
+  for (const el of [$('#chats-unread'), $('#unread-badge')]) {
+    el.hidden = !n;
+    el.textContent = n > 9 ? '9+' : String(n);
+  }
+}
+setInterval(() => !document.hidden && refreshUnread(), 5000);
+document.addEventListener('visibilitychange', () => !document.hidden && refreshUnread());
+
 // -------------------------------------------------------------- shortcuts
 
 // Captured before xterm sees them, so they never reach the shell.
@@ -332,7 +342,11 @@ const SHORTCUTS = [
       activate(tab.id);
     },
   },
-  { match: (e) => e.code === 'KeyN' && (isMac ? e.metaKey && e.ctrlKey && !e.altKey : e.ctrlKey && e.altKey), run: () => createTab() },
+  // ⌘N too (reaches the page in the installed app); off macOS Ctrl+N is the shell's.
+  {
+    match: (e) => e.code === 'KeyN' && !e.shiftKey && (isMac ? e.metaKey && !e.altKey : e.ctrlKey && e.altKey),
+    run: () => createTab(),
+  },
   { match: (e) => tmod(e) && e.code === 'KeyB', run: () => sidebar.toggle() },
   { match: (e) => tmod(e) && e.code === 'KeyE', run: () => setFiles(!document.body.classList.contains('files-open')) },
 ];
@@ -346,7 +360,7 @@ document.addEventListener(
   },
   true,
 );
-$('#new-tab-hint').textContent = isMac ? '⌃⌘N' : 'Ctrl+Alt+N';
+$('#new-tab-hint').textContent = isMac ? (standalone ? '⌘N' : '⌃⌘N') : 'Ctrl+Alt+N';
 $('#files-hint').textContent = `${TMOD}E`;
 
 // ------------------------------------------------------- touch key strip
@@ -632,3 +646,4 @@ try {
 if (local.get('files', false) && !narrow()) setFiles(true);
 await refreshTabs();
 openDir(cwd || config.workdir);
+refreshUnread();

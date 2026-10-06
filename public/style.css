@@ -1,42 +1,14 @@
-/* Chat page. Shared tokens and sidebar: base.css. */
+/* Chat page. Shared tokens and sidebar: base.css.
 
-.meter {
-  display: grid;
-  gap: 4px;
-}
-.meter-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-.meter-head b {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.meter-bar {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--line);
-  overflow: hidden;
-}
-.meter-bar span {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: var(--accent);
-  border-radius: inherit;
-  transition: width 0.3s ease;
-}
-.meter.warn .meter-bar span {
-  background: var(--warn);
-}
-.meter.danger .meter-bar span {
-  background: var(--danger);
-}
-.meter-foot {
-  font-size: 11px;
-  color: var(--muted);
+   The thread reads like a log: each turn opens with a numbered prompt, and
+   the reply hangs from it on a rail (left edge of the column) where tool
+   calls, thinking and the end of the turn are nodes. */
+
+:root {
+  --gutter: 28px; /* from the rail to the reply's text */
+  --rail: 2px; /* its width; nodes are centered on it */
+  --node: 14px; /* outer size, border included; even like --rail, so centering never lands on a half pixel (browsers round it) */
+  --row: 32px; /* height of a tool / thinking line, nodes sit on its middle */
 }
 
 /* --------------------------------------------------------------- main */
@@ -44,262 +16,260 @@
 #main {
   position: relative;
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   /* minmax(0, …): long unbreakable titles/paths must not widen the column */
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+  /* A faint glow of the chat's color from the top edge. */
+  background: radial-gradient(ellipse 70% 42% at 50% -6%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 72%);
 }
 body.sidebar-collapsed #messages,
 body.sidebar-collapsed #shortcuts-view {
-  padding-top: calc(60px + env(safe-area-inset-top));
-}
-#chat-stats {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
-#chat-stats:not(:empty) {
-  margin-bottom: 8px;
-}
-#chat-stats .model {
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-  margin-right: 4px;
-}
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.stat:hover {
-  color: var(--text);
-}
-.stat b {
-  color: var(--text);
-  font-weight: 600;
-}
-.stat-bar {
-  width: 26px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-  overflow: hidden;
-}
-.stat-bar span {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: var(--accent);
-}
-.stat.warn .stat-bar span {
-  background: var(--warn);
-}
-.stat.danger .stat-bar span {
-  background: var(--danger);
-}
-#usage-panel {
-  position: fixed;
-  z-index: 30;
-  width: min(320px, calc(100vw - 24px));
-  display: grid;
-  gap: 14px;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
-  box-shadow: var(--shadow);
-}
-.meter-group {
-  display: grid;
-  gap: 10px;
-}
-#usage-panel h2 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-/* shortcuts screen */
-#shortcuts-view {
-  display: none;
-  overflow-y: auto;
-  padding: calc(28px + env(safe-area-inset-top)) 16px 24px;
-}
-#shortcuts-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-}
-body[data-view='shortcuts'] #shortcuts-view {
-  display: block;
-}
-body[data-view='shortcuts'] #messages,
-body[data-view='shortcuts'] #composer-wrap,
-body[data-view='shortcuts'] #jump {
-  display: none !important;
-}
-.shortcuts-inner {
-  max-width: 640px;
-  margin: 0 auto;
-  display: grid;
-  gap: 16px;
-}
-.shortcuts-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-#back-to-chat {
-  width: auto;
-  justify-self: start;
-  border-color: var(--line);
-}
-#shortcut-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
-}
-#shortcut-list li {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--line);
-  transition: background 0.3s ease;
-}
-#shortcut-list li:first-child {
-  border-top: none;
-}
-#shortcut-list .what small {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-}
-#shortcut-list .keys {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-#shortcut-list kbd {
-  font: 12px/1.6 var(--mono);
-  padding: 0 6px;
-  border: 1px solid var(--line);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  background: var(--bg);
-}
-#shortcut-list .check {
-  width: 1.2em;
-  text-align: center;
-  color: var(--ok);
-  visibility: hidden;
-}
-#shortcut-list li.works .check {
-  visibility: visible;
-}
-#shortcut-list li.hit {
-  background: var(--accent-soft);
+  padding-top: calc(64px + env(safe-area-inset-top));
 }
 
 #messages {
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: calc(16px + env(safe-area-inset-top)) 16px 8px;
+  padding: calc(28px + env(safe-area-inset-top)) 16px 28px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 #thread,
-#loader-slot,
-#welcome {
+#loader-slot {
   max-width: var(--col);
   margin: 0 auto;
 }
-#welcome {
+#thread {
+  counter-reset: turn;
+}
+
+#jump {
+  position: absolute;
+  right: 18px;
+  bottom: 118px;
   display: grid;
   place-items: center;
-  gap: 6px;
-  padding-top: 18vh;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--raised) 90%, transparent);
+  color: var(--muted);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+#jump:hover {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 50%, var(--line));
+}
+#jump svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ------------------------------------------------------------ welcome */
+
+#welcome {
+  max-width: var(--col);
+  margin: 0 auto;
+  padding-top: 22vh;
+  text-align: center;
   color: var(--muted);
   font-size: 20px;
 }
 #welcome p {
   margin: 0;
 }
-#jump {
-  position: absolute;
-  right: 18px;
-  bottom: 110px;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+#shortcut-list kbd {
+  font: 10.5px/1.7 var(--mono);
+  color: var(--muted);
+  padding: 0 6px;
   border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
   background: var(--raised);
-  box-shadow: var(--shadow);
 }
 
 /* ------------------------------------------------------------- thread */
 
 .turn {
-  margin-bottom: 22px;
+  counter-increment: turn;
+  margin-bottom: 40px;
 }
+/* "01 ── 14:32 ─────" above each prompt. */
+.turn-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--faint);
+}
+.turn-head::before {
+  content: counter(turn, decimal-leading-zero);
+  color: var(--accent);
+}
+/* The rule sits between the number and the time. */
+.turn-head::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: var(--line-soft);
+}
+.turn-head time {
+  order: 2;
+}
+
 .user-msg {
-  margin: 0 0 14px auto;
-  width: fit-content;
-  max-width: min(85%, 600px);
-  background: var(--user-bg);
-  border-radius: 16px;
-  padding: 10px 14px;
+  position: relative;
+  padding: 12px 16px 13px 18px;
+  background: linear-gradient(100deg, color-mix(in oklab, var(--accent) 11%, var(--raised)) 0%, var(--raised) 60%);
+  border: 1px solid var(--line-soft);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  box-shadow: inset 2px 0 0 var(--accent);
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 .user-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.user-msg .gallery {
-  justify-content: flex-end;
-}
-.user-msg .gallery + .user-text {
-  margin-top: 8px;
+.user-msg .gallery + .user-text,
+.user-msg .files + .user-text {
+  margin-top: 10px;
 }
 .files {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 6px;
 }
 .file-chip {
-  font-size: 13px;
+  font: 11px/1.6 var(--mono);
   padding: 3px 9px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 4px;
   text-decoration: none;
   color: var(--text);
+  background: var(--bg);
 }
 
-.assistant > * + * {
-  margin-top: 10px;
+/* The rail: continues the prompt's accent bar down the reply. */
+.assistant {
+  position: relative;
+  padding: 18px 0 0 var(--gutter);
 }
+.assistant::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--rail);
+  background: linear-gradient(var(--accent), color-mix(in oklab, var(--accent) 25%, var(--line-soft)) 90px, var(--line-soft) 260px);
+}
+.turn:not(:has(.user-msg)) .assistant::before {
+  background: var(--line-soft);
+}
+.assistant > * + * {
+  margin-top: 14px;
+}
+.assistant > .tool + .tool,
+.assistant > .tool + .thinking,
+.assistant > .thinking + .tool {
+  margin-top: 2px;
+}
+
+/* Nodes on the rail. A ::before is placed from its element's padding box,
+   so --edge (the element's border) is taken back out to land on the rail's
+   axis; vertically they sit on the middle of the element's first line.
+   border-box: the global `* { box-sizing }` doesn't reach pseudo-elements,
+   and the node's own border would push it off center. */
+.assistant > .tool,
+.assistant > .thinking,
+.assistant > .turn-meta {
+  position: relative;
+  --edge: 0px;
+}
+.assistant > .tool {
+  --edge: 1px;
+}
+.assistant > .tool::before,
+.assistant > .thinking::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--rail) / 2 - var(--gutter) - var(--edge) - var(--node) / 2);
+  top: calc(var(--row) / 2 - var(--node) / 2);
+  box-sizing: border-box;
+  width: var(--node);
+  height: var(--node);
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--bg); /* a gap where the rail meets the node */
+}
+.assistant > .tool[data-state='done']::before {
+  border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+}
+.assistant > .tool[data-state='running']::before,
+.assistant > .tool.pending::before {
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: node-pulse 1.3s ease-in-out infinite;
+}
+.assistant > .tool[data-state='error']::before {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+.assistant > .thinking::before {
+  transform: scale(0.55);
+  border-color: var(--faint);
+  background: var(--faint);
+}
+/* The end of a turn: the rail stops in a ⊥ cap, colored by how it ended. */
+.assistant:has(> .turn-meta:last-child)::before {
+  bottom: 7px;
+}
+.assistant > .turn-meta::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--rail) / 2 - var(--gutter) - 7px);
+  top: 7px;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in oklab, var(--accent) 45%, var(--line));
+}
+.assistant > .turn-meta.interrupted::before {
+  background: var(--warn);
+}
+.assistant > .turn-meta.error::before {
+  background: var(--danger);
+}
+@keyframes node-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+}
+
+/* ----------------------------------------------------------- markdown */
 
 .md {
   overflow-wrap: anywhere;
+  font-size: 15.5px;
+  line-height: 1.65;
 }
 .md > :first-child {
   margin-top: 0;
@@ -313,36 +283,73 @@ body[data-view='shortcuts'] #jump {
 .md pre,
 .md blockquote,
 .md table {
-  margin: 0 0 0.75em;
+  margin: 0 0 0.85em;
+}
+.md strong {
+  font-weight: 650;
+  color: var(--text);
 }
 .md h1,
 .md h2,
 .md h3,
 .md h4 {
-  line-height: 1.3;
-  margin: 1em 0 0.5em;
+  font-weight: 650;
+  font-stretch: 85%;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 1.3em 0 0.5em;
 }
 .md h1 {
-  font-size: 1.3em;
+  font-size: 1.55em;
 }
 .md h2 {
-  font-size: 1.15em;
+  font-size: 1.3em;
 }
-.md h3,
+.md h3 {
+  font-size: 1.08em;
+}
 .md h4 {
   font-size: 1em;
+  color: var(--muted);
 }
 .md ul,
 .md ol {
-  padding-left: 1.4em;
+  padding-left: 1.35em;
 }
 .md li + li {
-  margin-top: 0.2em;
+  margin-top: 0.3em;
+}
+.md li::marker {
+  color: var(--accent);
+}
+.md ol > li::marker {
+  font: 500 0.75em var(--mono);
+}
+.md ul > li {
+  list-style: none;
+  position: relative;
+}
+.md ul > li::before {
+  content: '';
+  position: absolute;
+  left: -1.05em;
+  top: 0.66em;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+.md ul > li:has(> input[type='checkbox'])::before {
+  display: none;
+}
+.md input[type='checkbox'] {
+  margin: 0 6px 0 -1.2em;
 }
 .md blockquote {
-  border-left: 3px solid var(--line);
-  padding-left: 12px;
+  border-left: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+  padding: 2px 0 2px 16px;
   color: var(--muted);
+  font-style: italic;
 }
 .md table {
   border-collapse: collapse;
@@ -350,54 +357,80 @@ body[data-view='shortcuts'] #jump {
   overflow-x: auto;
   font-size: 14px;
 }
-.md th,
+.md th {
+  font: 500 10px/1.4 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: left;
+  padding: 0 22px 9px 0;
+  border-bottom: 1px solid var(--line);
+}
 .md td {
-  border: 1px solid var(--line);
-  padding: 5px 9px;
+  padding: 9px 22px 9px 0;
+  border-bottom: 1px solid var(--line-soft);
   text-align: left;
 }
 .md code {
   font-family: var(--mono);
-  font-size: 0.88em;
+  font-size: 0.78em;
+  font-stretch: 90%;
+  color: color-mix(in oklab, var(--accent) 50%, var(--text));
   background: var(--code-bg);
+  border: 1px solid var(--line-soft);
   border-radius: 4px;
-  padding: 0.1em 0.35em;
+  padding: 0.12em 0.4em;
+  font-style: normal;
 }
 .md img {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 .md hr {
   border: none;
-  border-top: 1px solid var(--line);
+  height: 1px;
+  margin: 1.4em 0;
+  background: repeating-linear-gradient(90deg, var(--line) 0 4px, transparent 4px 9px);
 }
 
 pre.code {
   position: relative;
   margin: 0;
   background: var(--code-bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 12px 14px;
   overflow-x: auto;
-  font: 13px/1.5 var(--mono);
+  font: 12px/1.65 var(--mono);
+  font-stretch: 87.5%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 pre.code code {
+  color: var(--text);
   background: none;
+  border: none;
   padding: 0;
   font-size: inherit;
+  font-stretch: inherit;
 }
 pre.code .copy {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 6px;
+  top: 7px;
+  right: 7px;
+  font: 500 9.5px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 7px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   background: var(--raised);
   color: var(--muted);
   opacity: 0;
+  transition: opacity 0.15s ease;
+}
+pre.code .copy:hover {
+  color: var(--accent);
 }
 pre.code:hover .copy,
 pre.code .copy:focus {
@@ -408,129 +441,219 @@ pre.code .copy:focus {
     opacity: 1;
   }
 }
+.diff span {
+  display: block;
+  margin: 0 -14px;
+  padding: 0 14px;
+}
 .diff .del {
-  color: var(--danger);
+  color: color-mix(in oklab, var(--danger) 85%, var(--text));
+  background: color-mix(in oklab, var(--danger) 9%, transparent);
 }
 .diff .add {
-  color: var(--ok);
+  color: color-mix(in oklab, var(--ok) 85%, var(--text));
+  background: color-mix(in oklab, var(--ok) 8%, transparent);
 }
 
 .thinking summary {
-  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  list-style: none;
+  color: var(--faint);
   font-size: 13px;
+  font-style: italic;
   cursor: pointer;
+}
+.thinking summary::-webkit-details-marker {
+  display: none;
+}
+.thinking summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.thinking[open] summary::after {
+  transform: rotate(45deg);
+}
+.thinking summary:hover {
+  color: var(--muted);
+  background: var(--raised);
 }
 .thinking .md {
   color: var(--muted);
   font-size: 14px;
-  margin-top: 6px;
+  font-style: italic;
+  padding: 4px 10px 6px;
 }
 
-/* tool calls */
+/* -------------------------------------------------------------- tools */
+
+/* A tool call is one line of the log; it opens into a panel. */
 .tool {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--raised);
-  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.tool:has(> .tool-body:not([hidden])) {
+  background: color-mix(in oklab, var(--raised) 70%, transparent);
+  border-color: var(--line-soft);
 }
 .tool-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 7px 11px;
+  min-height: 32px;
+  padding: 4px 10px;
   background: none;
   border: none;
+  border-radius: 6px;
   text-align: left;
   font-size: 13px;
+  color: var(--muted);
+}
+button.tool-head:hover {
+  background: var(--raised);
+}
+.tool:has(> .tool-body:not([hidden])) > .tool-head:hover {
+  background: none;
 }
 .tool-icon {
-  font-family: var(--mono);
+  flex-shrink: 0;
+  width: 14px;
+  font: 500 12px/1 var(--mono);
   color: var(--accent);
-  width: 1.2em;
   text-align: center;
 }
 .tool-name {
+  flex-shrink: 0;
   font-weight: 600;
+  color: var(--text);
 }
 .tool-sum {
   flex: 1;
   min-width: 0;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 12px;
+  color: var(--faint);
+  font: 11px/1.5 var(--mono);
+  font-stretch: 87.5%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tool-state {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 16px;
+}
 .tool-state::after {
   content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.5;
+  display: block;
 }
-.tool[data-state='running'] .tool-state::after,
+.tool[data-state='running'] .tool-state::after {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklab, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+.tool[data-state='done'] .tool-state::after {
+  width: 8px;
+  height: 4px;
+  margin-top: -2px;
+  border-left: 1.5px solid var(--faint);
+  border-bottom: 1.5px solid var(--faint);
+  transform: rotate(-45deg);
+}
+.tool[data-state='error'] .tool-state::after {
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  background: var(--danger);
+}
+.tool[data-state='error'] .tool-name {
+  color: var(--danger);
+}
 .tool.pending .tool-sum {
   animation: pulse 1.2s ease-in-out infinite;
 }
-.tool[data-state='done'] .tool-state::after {
-  background: var(--ok);
-  opacity: 1;
-}
-.tool[data-state='error'] .tool-state::after {
-  background: var(--danger);
-  opacity: 1;
-}
 @keyframes pulse {
   50% {
-    opacity: 0.2;
+    opacity: 0.3;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 .tool-body {
-  padding: 0 11px 11px;
+  padding: 2px 10px 10px;
   display: grid;
   gap: 8px;
 }
 .tool-body pre.code {
   max-height: 340px;
   overflow: auto;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .tool-result-label {
-  font-size: 12px;
-  color: var(--muted);
+  font: 500 9.5px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-top: 2px;
 }
 .tool[data-state='error'] pre.result {
-  color: var(--danger);
+  color: color-mix(in oklab, var(--danger) 80%, var(--text));
+  border-color: color-mix(in oklab, var(--danger) 30%, var(--line-soft));
 }
 .tool-images:not(:empty) {
-  padding: 0 11px 11px;
+  padding: 4px 10px 8px 34px;
 }
 .tool .sub:not(:empty) {
-  border-top: 1px dashed var(--line);
-  padding: 8px 11px;
+  margin: 0 10px 8px 16px;
+  padding: 4px 0 2px 12px;
+  border-left: 1px dashed var(--line);
   display: grid;
-  gap: 6px;
+  gap: 2px;
   font-size: 13px;
-}
-.tool .sub .tool {
-  background: var(--bg);
 }
 .todos {
   list-style: none;
   margin: 0;
   padding: 0;
   font-size: 14px;
+  display: grid;
+  gap: 3px;
+}
+.todos li > span:first-child {
+  font: 500 11px/1 var(--mono);
+  white-space: pre;
+  color: var(--faint);
 }
 .todos .completed {
-  color: var(--muted);
+  color: var(--faint);
   text-decoration: line-through;
+  text-decoration-color: var(--line);
+}
+.todos .completed > span:first-child {
+  color: var(--ok);
 }
 .todos .in_progress {
   font-weight: 600;
+}
+.todos .in_progress > span:first-child {
+  color: var(--accent);
 }
 
 .gallery {
@@ -541,7 +664,7 @@ pre.code .copy:focus {
 .thumb {
   max-width: min(260px, 100%);
   max-height: 260px;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   object-fit: cover;
   background: var(--panel);
@@ -551,8 +674,13 @@ pre.code .copy:focus {
 }
 
 .turn-meta {
-  color: var(--muted);
-  font-size: 12px;
+  font: 10.5px/16px var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  padding-left: 10px;
+}
+.turn-meta.interrupted {
+  color: color-mix(in oklab, var(--warn) 75%, var(--faint));
 }
 .turn-meta.error {
   color: var(--danger);
@@ -560,10 +688,20 @@ pre.code .copy:focus {
 }
 .note {
   max-width: var(--col);
-  margin: 0 auto 16px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--faint);
+  font: 11px/1.5 var(--mono);
   text-align: center;
-  color: var(--muted);
-  font-size: 13px;
+}
+.note::before,
+.note::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line-soft);
 }
 .note.error {
   color: var(--danger);
@@ -572,72 +710,118 @@ pre.code .copy:focus {
 
 /* ------------------------------------------------------------- loader */
 
+/* The live end of the rail: a pulsing node, then what's happening. */
+#thread:has(+ #loader-slot .loader) > .turn:last-child {
+  margin-bottom: 0;
+}
 .loader {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 18px 0 18px var(--gutter);
   color: var(--muted);
-  font-size: 14px;
-  padding: 2px 0 14px;
+  font-size: 13.5px;
+}
+.loader::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 29px; /* down to the middle of the label (18px padding + half its line) */
+  width: var(--rail);
+  background: linear-gradient(var(--line-soft), var(--accent));
+}
+.loader::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--rail) / 2 - var(--node) / 2);
+  top: calc(29px - var(--node) / 2);
+  width: var(--node);
+  height: var(--node);
+  border-radius: 50%;
+  background: var(--accent);
+  animation: node-pulse 1.3s ease-in-out infinite;
 }
 .loader-mark {
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 18px;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
 }
 .loader-mark i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
   background: var(--accent);
-  animation: loader-bounce 1.1s ease-in-out infinite;
+  transform-origin: bottom;
+  animation: loader-scan 1.2s ease-in-out infinite;
 }
 .loader-mark i:nth-child(2) {
-  animation-delay: 0.15s;
+  animation-delay: 0.18s;
 }
 .loader-mark i:nth-child(3) {
-  animation-delay: 0.3s;
+  animation-delay: 0.36s;
 }
 .loader[data-phase='writing'] .loader-mark i {
-  animation-name: loader-pulse;
-}
-.loader[data-phase='tool'] .loader-mark i {
+  animation-name: loader-eq;
   animation-duration: 0.7s;
 }
-.loader-time {
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  opacity: 0.7;
+.loader[data-phase='tool'] .loader-mark i {
+  animation-duration: 0.6s;
 }
-@keyframes loader-bounce {
+.loader-time {
+  font: 10.5px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+@keyframes loader-scan {
   0%,
-  80%,
   100% {
-    transform: translateY(0);
+    transform: scaleY(0.25);
     opacity: 0.35;
   }
-  40% {
-    transform: translateY(-5px);
+  35% {
+    transform: scaleY(1);
     opacity: 1;
   }
 }
-@keyframes loader-pulse {
-  50% {
-    transform: scale(0.5);
-    opacity: 0.4;
+@keyframes loader-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  60% {
+    transform: scaleY(0.55);
   }
 }
 
-/* ----------------------------------------------------------- composer */
+/* ------------------------------------------------------- composer dock */
 
 #composer-wrap {
-  padding: 6px 12px calc(10px + env(safe-area-inset-bottom));
+  position: relative;
+  z-index: 2;
 }
-#composer-wrap > * {
-  max-width: var(--col);
-  margin-left: auto;
-  margin-right: auto;
+/* The thread fades out into the dock. */
+#composer-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 14px;
+  bottom: 100%;
+  height: 32px;
+  background: var(--grain), var(--bg);
+  -webkit-mask-image: linear-gradient(transparent, #000);
+  mask-image: linear-gradient(transparent, #000);
+  pointer-events: none;
+}
+.dock {
+  max-width: calc(var(--col) + 32px);
+  margin: 0 auto;
+  padding: 2px 16px 12px;
 }
 #queue:not(:empty),
 #attachments:not(:empty) {
@@ -649,14 +833,21 @@ pre.code .copy:focus {
 .queued {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   max-width: 100%;
   font-size: 13px;
   color: var(--muted);
   background: var(--panel);
   border: 1px dashed var(--line);
-  border-radius: 10px;
-  padding: 4px 6px 4px 10px;
+  border-radius: 6px;
+  padding: 4px 4px 4px 10px;
+}
+.queued::before {
+  content: 'Queued';
+  font: 500 9.5px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 .queued span {
   overflow: hidden;
@@ -667,25 +858,25 @@ pre.code .copy:focus {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--raised);
   padding: 4px;
-  font-size: 12px;
-  max-width: 200px;
+  font: 11px/1.4 var(--mono);
+  max-width: 220px;
 }
 .chip img {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 .chip .name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 4px;
+  padding-left: 4px;
 }
 .chip.uploading {
   opacity: 0.55;
@@ -696,20 +887,47 @@ pre.code .copy:focus {
   background: none;
   color: var(--muted);
   font-size: 16px;
-  padding: 0 6px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
 }
+.chip-x:hover,
+.queued button:hover {
+  color: var(--text);
+  background: var(--raised-2);
+}
+
 #composer {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  background: var(--raised);
+  background: linear-gradient(180deg, var(--raised-2), var(--raised) 60%);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 10px;
   padding: 6px;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 0.06);
+  box-shadow: 0 16px 36px -14px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 #composer:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 12%, transparent), 0 16px 36px -14px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+#attach {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+}
+#attach svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 #input {
   flex: 1;
@@ -720,28 +938,544 @@ pre.code .copy:focus {
   color: var(--text);
   font: inherit;
   font-size: 16px; /* below 16px iOS zooms on focus */
-  line-height: 1.4;
+  line-height: 1.45;
   max-height: 40vh;
   padding: 7px 4px;
 }
+#input::placeholder {
+  color: var(--faint);
+}
 #send {
+  display: grid;
+  place-items: center;
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  border-radius: 12px;
+  padding: 0;
+  border-radius: 7px;
   border: none;
   background: var(--accent);
   color: var(--accent-text);
-  font-size: 18px;
-  font-weight: 700;
+  box-shadow: 0 0 20px -4px color-mix(in oklab, var(--accent) 60%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.3);
+  transition: opacity 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+#send:active:not(:disabled) {
+  transform: scale(0.94);
+}
+#send svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#send .i-stop,
+#send.stop .i-send {
+  display: none;
+}
+#send.stop .i-stop {
+  display: block;
+  fill: currentColor;
+  stroke: none;
 }
 #send:disabled {
-  opacity: 0.4;
+  background: var(--raised-2);
+  color: var(--faint);
+  box-shadow: none;
 }
 #send.stop {
   background: var(--text);
   color: var(--bg);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--text) 12%, transparent);
+}
+
+/* -------------------------------------------------------- status line */
+
+/* Bottom bar, like a terminal multiplexer's: this chat on the left, model,
+   context and account usage on the right. */
+#statusline {
+  display: flex;
+  align-items: stretch;
+  min-height: 30px;
+  padding: 0 6px env(safe-area-inset-bottom);
+  border-top: 1px solid var(--line-soft);
+  background: var(--panel);
+  font: 10.5px/1 var(--mono);
+  color: var(--faint);
+}
+#chat-title {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px;
+  color: var(--muted);
+}
+#chat-title .swatch {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+#chat-title .num {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+#chat-title .t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#chat-stats {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  margin-left: auto;
+}
+#chat-stats .model {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  white-space: nowrap;
+  color: var(--muted);
+}
+button.model::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin: 0 0 3px 1px;
+  border-right: 1.2px solid var(--faint);
+  border-bottom: 1.2px solid var(--faint);
+  transform: rotate(45deg);
+}
+button.model:hover {
+  color: var(--text);
+  background: var(--raised);
+}
+.model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-short {
+  display: none;
+}
+.model .effort {
+  padding: 2px 5px;
+  border: 1px solid color-mix(in oklab, var(--accent) 40%, var(--line));
+  border-radius: 3px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: none;
+  border-left: 1px solid var(--line-soft);
+  background: none;
+  font: inherit;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stat:hover {
+  color: var(--muted);
+  background: var(--raised);
+}
+.stat b {
+  color: var(--text);
+  font-weight: 500;
+}
+/* Segmented gauges: six cells. */
+.stat-bar,
+.meter-bar {
+  height: 7px;
+  background: var(--line-soft);
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+}
+.stat-bar {
+  width: 40px;
+}
+.stat-bar span,
+.meter-bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.stat.warn .stat-bar span,
+.meter.warn .meter-bar span {
+  background: var(--warn);
+}
+.stat.danger .stat-bar span,
+.meter.danger .meter-bar span {
+  background: var(--danger);
+}
+.stat.warn b {
+  color: var(--warn);
+}
+.stat.danger b {
+  color: var(--danger);
+}
+
+#usage-panel,
+#model-panel {
+  position: fixed;
+  z-index: 30;
+  width: min(320px, calc(100vw - 24px));
+  display: grid;
+  gap: 18px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  animation: pop-in 0.14s var(--ease);
+}
+.meter-group,
+.pick-group {
+  display: grid;
+  gap: 12px;
+}
+.pick-group {
+  gap: 2px;
+}
+/* Model rows: a radio dot, the name, a note. */
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+}
+.pick:hover {
+  background: var(--raised-2);
+}
+.pick .radio {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+}
+.pick.on .radio {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 0 3px, transparent 3.5px);
+}
+.pick.on .pick-label {
+  font-weight: 600;
+}
+.pick-note {
+  margin-left: auto;
+  font: 10px/1.3 var(--mono);
+  color: var(--faint);
+  text-align: right;
+}
+/* Effort: one strip of mono segments. */
+.segmented {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.segmented button {
+  flex: 1;
+  min-height: 30px;
+  padding: 0 4px;
+  border: none;
+  border-left: 1px solid var(--line-soft);
+  background: none;
+  font: 10.5px/1 var(--mono);
+  color: var(--muted);
+}
+.segmented button:first-child {
+  border-left: none;
+}
+.segmented button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--raised-2);
+}
+.segmented button.on {
+  color: var(--accent-text);
+  background: var(--accent);
+  font-weight: 600;
+}
+.segmented button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+#usage-panel h2,
+#model-panel h2 {
+  margin: 0;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+#model-panel h2 {
+  margin-bottom: 8px;
+}
+.meter {
+  display: grid;
+  gap: 6px;
+}
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 13px;
+}
+.meter-head b {
+  font: 500 11px/1.6 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.meter-bar {
+  height: 9px;
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+}
+.meter-foot {
+  font: 10.5px/1.5 var(--mono);
+  color: var(--faint);
+}
+
+/* -------------------------------------------------------------- notice */
+
+/* "This other chat just replied": the chat, the start of the reply, and a
+   bar for the time left (paused on hover and while the page is away). */
+#notice {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 16px;
+  z-index: 45;
+  width: min(360px, calc(100vw - 32px));
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px 14px 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(160deg, color-mix(in oklab, var(--item-accent) 12%, var(--raised-2)), var(--raised-2) 55%);
+  box-shadow: inset 3px 0 0 var(--item-accent), var(--shadow);
+  cursor: pointer;
+  animation: notice-in 0.32s var(--ease);
+}
+#notice:hover {
+  border-color: color-mix(in oklab, var(--item-accent) 40%, var(--line));
+}
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+.notice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 9.5px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--item-accent);
+}
+.notice-head .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--item-accent);
+  box-shadow: 0 0 8px var(--item-accent);
+  animation: notice-dot 1.6s ease-in-out infinite;
+}
+@keyframes notice-dot {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--item-accent) 20%, transparent);
+  }
+}
+.notice-head .num {
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+.notice-x {
+  margin: -6px -8px -6px auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--faint);
+  font-size: 18px;
+  line-height: 1;
+}
+.notice-x:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--text) 8%, transparent);
+}
+.notice-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notice-preview {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.notice-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.notice-more {
+  font: 10px/1 var(--mono);
+  color: var(--faint);
+}
+.notice-open {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 6px 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--item-accent);
+}
+.notice-open kbd {
+  font: 500 10px/1.6 var(--mono);
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--accent-text) 16%, transparent);
+}
+@media (pointer: coarse) {
+  .notice-open {
+    padding-right: 12px;
+  }
+}
+.notice-time {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--item-accent);
+  transform-origin: left;
+  animation: notice-time var(--notice-time, 30s) linear forwards;
+}
+#notice:hover .notice-time,
+body.away .notice-time {
+  animation-play-state: paused;
+}
+@keyframes notice-time {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------------------------------------------------------- shortcuts */
+
+#shortcuts-view {
+  display: none;
+  overflow-y: auto;
+  padding: calc(48px + env(safe-area-inset-top)) 16px 32px;
+}
+body[data-view='shortcuts'] #shortcuts-view {
+  display: block;
+}
+body[data-view='shortcuts'] #messages,
+body[data-view='shortcuts'] #composer-wrap,
+body[data-view='shortcuts'] #jump {
+  display: none !important;
+}
+.shortcuts-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+.shortcuts-inner .label {
+  margin: 0;
+  color: var(--accent);
+}
+#shortcuts-title {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 600;
+  font-stretch: 78%;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+#back-to-chat {
+  width: auto;
+  justify-self: start;
+  margin-top: 6px;
+  border-color: var(--line);
+}
+#shortcut-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+#shortcut-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+#shortcut-list .what small {
+  display: block;
+  color: var(--faint);
+  font-size: 12.5px;
+}
+#shortcut-list .keys {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  color: var(--faint);
+  font-size: 12px;
+}
+#shortcut-list kbd {
+  font-size: 11px;
+  padding: 1px 7px;
+  background: var(--bg);
 }
 
 /* ---------------------------------------------------------- overlays */
@@ -750,7 +1484,9 @@ pre.code .copy:focus {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgb(0 0 0 / 0.9);
+  background: color-mix(in oklab, var(--panel) 94%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
 }
@@ -758,6 +1494,8 @@ pre.code .copy:focus {
   max-width: 96vw;
   max-height: 88vh;
   object-fit: contain;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
 }
 .lightbox-bar {
   position: absolute;
@@ -768,38 +1506,98 @@ pre.code .copy:focus {
   align-items: center;
 }
 .lightbox-bar a {
-  color: #ddd;
-  font-size: 13px;
+  font: 11px var(--mono);
+  color: var(--muted);
 }
 .lightbox-bar button {
-  border: none;
-  background: rgb(255 255 255 / 0.15);
-  color: #fff;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--text);
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 8px;
   font-size: 20px;
 }
 
 /* -------------------------------------------------------------- mobile */
 
 @media (max-width: 800px) {
+  :root {
+    --gutter: 22px;
+  }
   #messages,
   #shortcuts-view,
   body.sidebar-collapsed #messages,
   body.sidebar-collapsed #shortcuts-view {
-    padding-top: calc(60px + env(safe-area-inset-top));
+    padding-top: calc(64px + env(safe-area-inset-top));
   }
   #messages {
     padding-left: 14px;
     padding-right: 14px;
-    padding-bottom: 6px;
+    padding-bottom: 20px;
+  }
+  /* Content scrolls out under the floating sidebar toggle. */
+  #main {
+    background: none;
+  }
+  #main::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 4;
+    height: calc(58px + env(safe-area-inset-top));
+    background: var(--grain), var(--bg);
+    -webkit-mask-image: linear-gradient(#000 45%, transparent);
+    mask-image: linear-gradient(#000 45%, transparent);
+    pointer-events: none;
+  }
+  .dock {
+    padding: 2px 10px 10px;
+  }
+  .user-msg {
+    font-size: 15px;
+  }
+  .md {
+    font-size: 15px;
+  }
+  #chat-stats .model {
+    padding: 0 8px;
+  }
+  .model-name,
+  button.model::after {
+    display: none;
+  }
+  .model-short {
+    display: inline;
+  }
+  #notice {
+    top: calc(62px + env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    width: auto;
   }
   .stat {
-    padding: 1px 7px;
-    font-size: 11px;
+    padding: 0 8px;
+    gap: 5px;
   }
   .stat-bar {
     display: none;
+  }
+  #jump {
+    bottom: 112px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-mark i,
+  .loader::after,
+  .assistant > .tool::before,
+  .tool-state::after,
+  #usage-panel,
+  #notice,
+  .notice-head .dot {
+    animation: none !important;
   }
 }

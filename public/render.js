@@ -85,21 +85,22 @@ function gallery(images) {
 // ------------------------------------------------------------------- tools
 
 // summary: one line next to the tool name. body: the expanded view of the
-// input. open: start expanded.
+// input. open: start expanded. Icons are shell-ish marks (< reads, > writes,
+// & runs in the background…) drawn in the mono font.
 export const TOOLS = {
   Bash: { icon: '$', summary: (i) => i.description || i.command, body: (i) => code(i.command, 'bash') },
-  Read: { icon: '◰', summary: (i) => short(i.file_path) },
-  Write: { icon: '✎', summary: (i) => short(i.file_path), body: (i) => code(i.content) },
-  Edit: { icon: '✎', summary: (i) => short(i.file_path), body: (i) => diff(i.old_string, i.new_string) },
-  MultiEdit: { icon: '✎', summary: (i) => short(i.file_path), body: (i) => h('div', {}, (i.edits || []).map((e) => diff(e.old_string, e.new_string))) },
-  NotebookEdit: { icon: '✎', summary: (i) => short(i.notebook_path) },
-  Glob: { icon: '⌕', summary: (i) => i.pattern },
-  Grep: { icon: '⌕', summary: (i) => `${i.pattern}${i.path ? ` · ${short(i.path)}` : ''}` },
-  WebFetch: { icon: '↗', summary: (i) => i.url },
-  WebSearch: { icon: '↗', summary: (i) => i.query },
-  Task: { icon: '◎', summary: (i) => i.description },
-  Agent: { icon: '◎', summary: (i) => i.description },
-  TodoWrite: { icon: '☑', summary: (i) => todoSummary(i.todos), body: (i) => todos(i.todos), open: true },
+  Read: { icon: '<', summary: (i) => short(i.file_path) },
+  Write: { icon: '>', summary: (i) => short(i.file_path), body: (i) => code(i.content) },
+  Edit: { icon: '±', summary: (i) => short(i.file_path), body: (i) => diff(i.old_string, i.new_string) },
+  MultiEdit: { icon: '±', summary: (i) => short(i.file_path), body: (i) => h('div', {}, (i.edits || []).map((e) => diff(e.old_string, e.new_string))) },
+  NotebookEdit: { icon: '±', summary: (i) => short(i.notebook_path) },
+  Glob: { icon: '*', summary: (i) => i.pattern },
+  Grep: { icon: '/', summary: (i) => `${i.pattern}${i.path ? ` · ${short(i.path)}` : ''}` },
+  WebFetch: { icon: '@', summary: (i) => i.url },
+  WebSearch: { icon: '?', summary: (i) => i.query },
+  Task: { icon: '&', summary: (i) => i.description },
+  Agent: { icon: '&', summary: (i) => i.description },
+  TodoWrite: { icon: '#', summary: (i) => todoSummary(i.todos), body: (i) => todos(i.todos), open: true },
 };
 
 function diff(before = '', after = '') {
@@ -112,7 +113,7 @@ function todoSummary(list = []) {
 }
 
 function todos(list = []) {
-  const mark = { completed: '☑', in_progress: '◐', pending: '☐' };
+  const mark = { completed: '[x]', in_progress: '[~]', pending: '[ ]' };
   return h(
     'ul',
     { class: 'todos' },
@@ -121,7 +122,7 @@ function todos(list = []) {
 }
 
 function toolCard(block) {
-  const spec = TOOLS[block.name] || { icon: '⚙', summary: (i) => firstString(i) };
+  const spec = TOOLS[block.name] || { icon: '•', summary: (i) => firstString(i) };
   const input = block.input || {};
   const body = h('div', { class: 'tool-body', hidden: !spec.open });
   body.append(spec.body ? spec.body(input) : code(JSON.stringify(input, null, 2), 'json'));
@@ -193,7 +194,7 @@ export class Thread {
     switch (item.t) {
       case 'user': {
         const turn = this.newTurn();
-        turn.el.prepend(userMessage(item));
+        turn.el.prepend(turnHead(item), userMessage(item));
         break;
       }
       case 'block':
@@ -239,7 +240,7 @@ export class Thread {
       const draft = { kind: ev.kind, text: ev.text || '', parent: ev.parent, el: null };
       this.drafts.set(key, draft);
       if (ev.kind === 'tool_use') {
-        draft.el = h('div', { class: 'tool pending' }, h('div', { class: 'tool-head' }, h('span', { class: 'tool-icon', textContent: TOOLS[ev.name]?.icon || '⚙' }), h('span', { class: 'tool-name', textContent: ev.name }), h('span', { class: 'tool-sum', textContent: 'preparing…' })));
+        draft.el = h('div', { class: 'tool pending' }, h('div', { class: 'tool-head' }, h('span', { class: 'tool-icon', textContent: TOOLS[ev.name]?.icon || '•' }), h('span', { class: 'tool-name', textContent: ev.name }), h('span', { class: 'tool-sum', textContent: 'preparing…' })));
         this.container(ev.parent).append(draft.el);
       }
       if (draft.text) this.paint(draft);
@@ -275,6 +276,14 @@ export class Thread {
   }
 }
 
+// "01 ──── 14:32" above each prompt (the number comes from a CSS counter).
+function turnHead(item) {
+  const d = new Date(item.ts);
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const day = d.toDateString() === new Date().toDateString() ? '' : `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · `;
+  return h('div', { class: 'turn-head' }, item.ts ? h('time', { dateTime: d.toISOString(), textContent: `${day}${time}` }) : null);
+}
+
 function userMessage(item) {
   const images = item.attachments.filter((a) => a.mediaType.startsWith('image/'));
   const files = item.attachments.filter((a) => !a.mediaType.startsWith('image/'));
@@ -288,9 +297,9 @@ function userMessage(item) {
 }
 
 function resultLine(item) {
-  if (item.interrupted) return h('div', { class: 'turn-meta', textContent: 'Interrupted' });
+  if (item.interrupted) return h('div', { class: 'turn-meta interrupted', textContent: 'interrupted' });
   if (item.error) return h('div', { class: 'turn-meta error', textContent: `Error: ${item.error}` });
   const secs = item.durationMs ? (item.durationMs / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 }) : null;
-  return h('div', { class: 'turn-meta', textContent: secs ? `${secs}s` : '' });
+  return h('div', { class: 'turn-meta', textContent: secs ? `done · ${secs}s` : 'done' });
 }
 

@@ -8,6 +8,9 @@ export const touch = matchMedia('(pointer: coarse)').matches;
 export const narrow = () => matchMedia('(max-width: 800px)').matches;
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD = isMac ? '⌘' : 'Ctrl+';
+// The installed app's window. Only there do ⌘N / ⌘T / ⌘W reach the page:
+// in a browser tab Chrome keeps them (new window, tab, close).
+export const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);
@@ -212,10 +215,31 @@ window.addEventListener('blur', () => document.body.classList.remove('show-keys'
 // Accents share lightness and chroma (so any hue reads well on the dark UI);
 // only the hue varies per chat or terminal.
 export const DEFAULT_HUE = 255;
-export const accentFor = (hue) => `oklch(0.78 0.14 ${Number.isFinite(hue) ? hue : DEFAULT_HUE})`;
+const hueOr = (hue) => (Number.isFinite(hue) ? hue : DEFAULT_HUE);
+export const accentFor = (hue) => `oklch(0.78 0.14 ${hueOr(hue)})`;
+// The page background for a hue — keep in sync with --bg in base.css.
+export const surfaceFor = (hue) => `oklch(0.165 0.014 ${hueOr(hue)})`;
 
-// First letter (or emoji) of a title, for the colored avatar.
-export const initial = (title) => ([...(title || '').trim()][0] || '·').toUpperCase();
+// Tints the whole page (base.css derives every color from --h) and the
+// browser's toolbar.
+export function setHue(hue) {
+  document.documentElement.style.setProperty('--h', hueOr(hue));
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', toHex(surfaceFor(hue)));
+}
+
+// Some consumers (xterm.js, theme-color) only understand sRGB; let a canvas
+// convert oklch().
+const swatch = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+export function toHex(color) {
+  swatch.clearRect(0, 0, 1, 1);
+  swatch.fillStyle = color;
+  swatch.fillRect(0, 0, 1, 1);
+  const [r, g, b] = swatch.getImageData(0, 0, 1, 1).data;
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+// Sidebar items are numbered: the number is also their ⌘ shortcut.
+export const indexLabel = (i) => String(i + 1).padStart(2, '0');
 
 export const MORE_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';

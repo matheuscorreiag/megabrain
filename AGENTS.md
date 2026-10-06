@@ -30,16 +30,22 @@ owner's subscription — no API key, no Agent SDK). The UI must stay
   "Shortcuts" or "Terminal".
 - **English UI**, everywhere (server error messages too). The owner talks to
   agents in Portuguese; the app itself is English.
-- **Always dark.** Only the accent changes: each chat (and terminal) has its own
-  hue at fixed OKLCH lightness/chroma — `oklch(0.78 0.14 <hue>)` — so any hue
-  reads well on the dark background.
+- **Always dark.** Only the hue changes: each chat (and terminal) has its own
+  hue; the accent is `oklch(0.78 0.14 <hue>)` and every surface, line and text
+  color in `base.css` is derived from the same `--h` at a fixed low chroma, so
+  the page is faintly tinted and any hue reads well. `setHue()` (ui.js) sets it.
 - **Agent-agnostic** UI and chat engine (see Architecture).
 - **Tailscale stays** as the network layer. Exposing the app publicly with a
   homemade token was discussed and rejected: the agent runs with
   `--dangerously-skip-permissions` on a machine inside the office network.
 - Minimal chrome: no header bar. The sidebar toggle sits inside the sidebar
   when open and floats top-left when closed; the connection status is just a
-  dot next to it.
+  dot next to it. The open chat's title, model and usage live in a status line
+  under the composer.
+- Look: Instrument Sans for text, Martian Mono for labels, code and readouts
+  (self-hosted in `public/fonts/`); small radii, hairlines, a faint grain. The
+  thread is a log — numbered prompts, the reply on a rail with tool calls as
+  nodes — not chat bubbles.
 
 ## Architecture
 
@@ -59,7 +65,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `lib/agents/claude.js` | **the only Claude-specific code**: CLI args, message encoding, interrupt, event parsing, labels |
 | `lib/agents/index.js` | adapter registry by `agent.type` |
 | `lib/terminal.js` | tmux tabs + file API (list/read/write/mkdir/rename/trash) + PTY WebSocket |
-| `public/base.css`, `public/ui.js` | **shared by both pages**: tokens, sidebar, item rows, menus, inline rename, status dot, accents, `api()`, `h()` |
+| `public/base.css`, `public/ui.js` | **shared by both pages**: fonts, tokens, sidebar, item rows, menus, inline rename, status dot, page tint (`setHue`), accents, `api()`, `h()` |
 | `public/index.html`, `app.js`, `style.css` | chat page (state, WebSocket, usage, shortcuts screen, composer) |
 | `public/render.js` | chat items → DOM (markdown, tool cards via `TOOLS`, images, streaming drafts) |
 | `public/loader.js` | the "working" indicator (small, swappable contract) |
@@ -81,7 +87,18 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 - Messages sent while a turn runs go to an in-memory **queue**; one socket's
   messages are processed in order (so "stop" can't overtake "send").
 - Per chat meta (`meta.json`): title, hue, sessionId, model, modelLabel,
-  context `{ used, window }`. Account-wide usage windows: `~/.term-hub/limits.json`.
+  context `{ used, window }`, settings `{ model, effort }` (null = default),
+  doneAt / readAt. Account-wide usage windows: `~/.term-hub/limits.json`.
+- **Model / effort**: the chat's settings become the adapter's `--model` /
+  `--effort` when its process spawns. A process keeps its flags, so changing
+  them retires it (`retire()`: detach, then end stdin) — at once if idle, at
+  the end of the turn otherwise — and the next message resumes the session
+  with the new ones. Until the new process reports its model, `modelLabel` is
+  the choice's label.
+- **Unread**: `unread = doneAt > readAt`, where doneAt is set when a turn ends.
+  It's read when a socket that has the chat open is visible (the page sends
+  `{ op: 'visibility' }` on connect and on visibilitychange) — at turn end,
+  on `open`, or when the page becomes visible. Shared by every device.
 - Images from tool results are saved content-addressed in `~/.term-hub/media/`;
   uploads go there too. Attachments are passed to the agent as image blocks
   (png/jpeg/gif/webp) and always also by path.
@@ -89,7 +106,9 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 ### Adding another agent
 
 Create `lib/agents/<type>.js` exporting `{ name, spawnArgs, userMessage,
-interruptMessage, createParser }` (optionally `limitLabel`, `modelLabel`),
+interruptMessage, createParser }` (optionally `limitLabel`, `modelLabel`, and
+`models` `[{ id, label, note, effort: false? }]` / `efforts` for the per-chat
+picker; the UI shows whatever the adapter offers, nothing if it offers none),
 register it in `lib/agents/index.js`, set `agent.type` in `config.json`.
 Known limitation: `chat.js` assumes a **persistent process speaking JSON lines**.
 A one-shot CLI (e.g. `codex exec`) or an HTTP API needs the transport moved into
@@ -120,9 +139,12 @@ to a generic card.
   double-click rename and focus). Hold re-renders while an inline rename is
   open.
 - Shortcuts are one table per page (chat: `SHORTCUTS` in `app.js`, also drives
-  the Shortcuts screen). Chat: ⌘1–9, ⌃⌘N, ⌘B, ⌘/. Terminal: ⌘1–9, ⌃⌘N, ⌘B,
+  the Shortcuts screen). Chat: ⌘1–9, ⌃⌘N, ⌘B, ⌘J, ⌘/. Terminal: ⌘1–9, ⌃⌘N, ⌘B,
   ⌘E — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E
-  belong to the shell. Avoid ⌘N/⌘T/⌘W (browsers keep them).
+  belong to the shell. ⌘N/⌘T/⌘W never reach a page in a Chrome tab (reserved),
+  only in the installed app's window (Chrome reserves no keys for apps): ⌘N is
+  "new chat / new terminal" there, and ⌃⌘N stays as the fallback that works in
+  tabs. Don't rely on ⌘T/⌘W.
 
 ## Security model
 
@@ -190,6 +212,9 @@ HUB_CONFIG=/path/to/test-config.json node server.js
   with optional chaining. Ignore drafts whose final block is already shown.
 - **CSS `[hidden]`**: author `display` rules beat the `hidden` attribute; base
   CSS forces `[hidden] { display: none !important }`.
+- **Pseudo-element sizing**: `* { box-sizing: border-box }` doesn't match
+  `::before`/`::after`; give bordered pseudo-elements their own `box-sizing`
+  or their borders shift anything centered by formula (the rail nodes).
 - **Grid overflow**: long unbreakable titles widen `1fr` columns — use
   `minmax(0, 1fr)`.
 - **xterm.js colors** must be sRGB; convert `oklch()` through a canvas.

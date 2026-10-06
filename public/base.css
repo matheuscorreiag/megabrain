@@ -1,29 +1,63 @@
-/* Shared by the chat (/) and terminal (/terminal/) pages: color tokens,
-   the sidebar (toggle, status dot, buttons, item rows, collapse animation,
-   phone drawer), menus and toasts. Page-specific styles live next to each
-   page. */
+/* Shared by the chat (/) and terminal (/terminal/) pages: fonts, color
+   tokens, the sidebar (toggle, status dot, buttons, item rows, collapse
+   animation, phone drawer), menus and toasts. Page-specific styles live next
+   to each page. */
 
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('/fonts/instrument-sans.woff2') format('woff2');
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('/fonts/instrument-sans-italic.woff2') format('woff2');
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Martian Mono';
+  src: url('/fonts/martian-mono.woff2') format('woff2');
+  font-weight: 300 600;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+}
+
+/* The whole page is tinted by the open chat's (or terminal's) hue: `--h` is
+   set from JS (ui.js setHue). Surfaces keep a low chroma so it's always dark
+   and only faintly colored; the accent keeps the fixed lightness/chroma. */
 :root {
-  --bg: #1c1d20;
-  --panel: #161719;
-  --raised: #26282c;
-  --line: #33363b;
-  --text: #ecedef;
-  --muted: #9ba0a8;
-  --accent: oklch(0.78 0.14 255);
-  --accent-text: #111214;
-  --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
-  --user-bg: #2a2d32;
-  --code-bg: #17181b;
-  --danger: #ef7a6b;
-  --warn: #e0b04a;
-  --ok: #74c08a;
-  --shadow: 0 6px 24px rgb(0 0 0 / 0.45);
+  --h: 255;
+  --bg: oklch(0.165 0.014 var(--h));
+  --panel: oklch(0.138 0.012 var(--h));
+  --raised: oklch(0.205 0.017 var(--h));
+  --raised-2: oklch(0.245 0.02 var(--h));
+  --line: oklch(0.3 0.02 var(--h));
+  --line-soft: oklch(0.24 0.017 var(--h));
+  --text: oklch(0.95 0.008 var(--h));
+  --muted: oklch(0.73 0.02 var(--h));
+  --faint: oklch(0.56 0.022 var(--h));
+  --accent: oklch(0.78 0.14 var(--h));
+  --accent-text: oklch(0.2 0.04 var(--h));
+  --accent-soft: color-mix(in oklab, var(--accent) 14%, transparent);
+  --code-bg: oklch(0.13 0.011 var(--h));
+  --danger: oklch(0.72 0.16 25);
+  --warn: oklch(0.82 0.13 80);
+  --ok: oklch(0.8 0.14 155);
+  --shadow: 0 18px 40px -12px rgb(0 0 0 / 0.65), 0 2px 6px rgb(0 0 0 / 0.3);
   --app-h: 100dvh;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --col: 760px;
+  --sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: 'Martian Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --col: 780px;
+  --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
+  /* Film grain over the flat surfaces (a tiny tiled SVG noise). */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   color-scheme: dark;
+  accent-color: var(--accent);
 }
 
 * {
@@ -34,6 +68,10 @@
   display: none !important;
 }
 
+::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
 html,
 body {
   margin: 0;
@@ -41,14 +79,17 @@ body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.55 var(--sans);
+  font: 15px/1.6 var(--sans);
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  transition: grid-template-columns 0.26s cubic-bezier(0.3, 0.7, 0.2, 1);
+  grid-template-columns: 272px 1fr;
+  background: var(--grain), var(--bg);
+  transition: grid-template-columns 0.26s var(--ease);
 }
 /* ⌘B on desktop: the column slides shut; the sidebar's content keeps its
    width and is clipped instead of squeezed, then goes invisible. */
@@ -60,7 +101,7 @@ body.sidebar-collapsed {
   transition: opacity 0.2s ease, visibility 0s linear 0s;
 }
 #sidebar > * {
-  min-width: 279px;
+  min-width: 271px;
 }
 body.sidebar-collapsed #sidebar {
   opacity: 0;
@@ -76,6 +117,15 @@ button {
 }
 a {
   color: var(--accent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+kbd {
+  font-family: var(--mono);
+}
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
+  outline-offset: 2px;
 }
 
 .icon-btn {
@@ -85,26 +135,35 @@ a {
   font-size: 20px;
   line-height: 1;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 .icon-btn:hover {
   color: var(--text);
-  background: var(--panel);
+  background: var(--raised);
 }
+
+/* Small uppercase mono labels used across both pages. */
+.label {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
 /* ------------------------------------------------------------ sidebar */
 
 #sidebar {
   display: flex;
   flex-direction: column;
-  background: var(--panel);
-  border-right: 1px solid var(--line);
+  background: var(--grain), var(--panel);
+  border-right: 1px solid var(--line-soft);
   min-height: 0;
   padding-top: env(safe-area-inset-top);
 }
 .side-head {
   display: grid;
-  gap: 10px;
-  padding: 10px 12px 10px;
+  gap: 12px;
+  padding: 10px 12px 6px;
 }
 /* Same spot as the floating #open-sidebar, so the toggle doesn't jump. */
 .brand-row {
@@ -118,47 +177,75 @@ a {
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 40px;
-  padding: 0 12px;
+  min-height: 38px;
+  padding: 0 10px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 6px;
   background: none;
-  color: var(--text);
+  color: var(--muted);
   font-size: 14px;
   font-weight: 500;
   text-align: left;
   text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .side-btn:hover,
 .side-btn.active {
+  color: var(--text);
   background: var(--raised);
 }
 .side-btn.active {
-  border-color: var(--line);
+  border-color: var(--line-soft);
 }
 .side-btn svg {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
+  color: var(--faint);
+}
+.side-btn:hover svg {
   color: var(--muted);
 }
+/* The primary button is an empty slot waiting for the next item; its swatch
+   shows the color the next chat will get (--swatch, set by the page). */
 .side-btn.primary {
-  background: var(--raised);
-  border-color: var(--line);
+  --swatch: var(--accent);
+  min-height: 44px;
+  padding-left: 7px;
+  color: var(--text);
+  background: none;
+  border: 1px dashed var(--line);
+}
+.side-btn.primary .swatch {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--swatch) 16%, transparent);
+  transition: background 0.15s ease;
 }
 .side-btn.primary svg {
-  color: var(--accent);
+  width: 15px;
+  height: 15px;
+  color: var(--swatch);
   stroke-width: 2.4;
 }
 .side-btn.primary:hover {
-  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
-  background: color-mix(in oklab, var(--accent) 10%, var(--raised));
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--swatch) 55%, var(--line));
+  background: color-mix(in oklab, var(--swatch) 6%, transparent);
+}
+.side-btn.primary:hover .swatch {
+  background: var(--swatch);
+}
+.side-btn.primary:hover svg {
+  color: var(--accent-text);
 }
 /* Keyboard hints mean nothing on a touch screen. */
 @media (pointer: coarse) {
@@ -168,86 +255,118 @@ a {
 }
 .side-btn .hint {
   margin-left: auto;
-  font: 11px/1.6 var(--mono);
-  color: var(--muted);
+  font: 10.5px/1.6 var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--faint);
   background: none;
   border: none;
   padding: 0;
 }
+
+.side-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px 8px;
+}
+.side-label .count {
+  margin-left: auto;
+  color: color-mix(in oklab, var(--faint) 75%, transparent);
+}
 .side-list {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 8px;
+  padding: 0 8px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 .side-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 50px;
-  padding: 6px 6px 6px 8px;
-  border: 1px solid transparent;
-  border-radius: 12px;
+  min-height: 48px;
+  padding: 5px 4px 5px 8px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease;
 }
 .side-item + .side-item {
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .side-item:hover {
-  background: var(--raised);
+  background: color-mix(in oklab, var(--item-accent) 5%, var(--raised));
 }
 .side-item:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--item-accent) 60%, transparent);
   outline-offset: -2px;
 }
+/* Active: a wash of the item's own color, fading out to the right, and a
+   bar on the left edge. */
 .side-item.active {
-  background: color-mix(in oklab, var(--item-accent) 11%, var(--raised));
-  border-color: color-mix(in oklab, var(--item-accent) 32%, transparent);
+  background: linear-gradient(90deg, color-mix(in oklab, var(--item-accent) 17%, transparent), color-mix(in oklab, var(--item-accent) 4%, transparent) 75%);
 }
-/* Each item's accent (a chat's or a terminal's) shows up in its avatar. */
+.side-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--item-accent);
+}
+/* Each item's accent (a chat's or a terminal's) colors its index number,
+   which is also its ⌘ shortcut. */
 .side-item .avatar {
   flex-shrink: 0;
   display: grid;
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 700;
+  border-radius: 5px;
+  font: 500 11px/1 var(--mono);
+  letter-spacing: -0.02em;
   color: var(--item-accent);
-  background: color-mix(in oklab, var(--item-accent) 17%, transparent);
+  background: color-mix(in oklab, var(--item-accent) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--item-accent) 22%, transparent);
   transition: background 0.15s ease, color 0.15s ease;
 }
 .side-item.active .avatar {
   color: var(--accent-text);
   background: var(--item-accent);
+  box-shadow: 0 0 18px -4px color-mix(in oklab, var(--item-accent) 70%, transparent);
 }
 .side-item .avatar.busy {
   animation: avatar-busy 1.4s ease-in-out infinite;
 }
 @keyframes avatar-busy {
   50% {
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--item-accent) 28%, transparent);
+    box-shadow: inset 0 0 0 1px var(--item-accent), 0 0 0 4px color-mix(in oklab, var(--item-accent) 22%, transparent);
   }
 }
 .side-item .text {
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 1px;
+  gap: 2px;
 }
 .side-item .name {
   font-size: 14px;
   font-weight: 500;
   line-height: 1.3;
+  color: color-mix(in oklab, var(--text) 82%, transparent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.side-item.active .name {
+  color: var(--text);
+}
 .side-item .sub {
-  font-size: 12px;
-  color: var(--muted);
+  font: 10.5px/1.4 var(--mono);
+  color: var(--faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -263,23 +382,22 @@ a {
 .side-item .more {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 5px;
   background: none;
   color: var(--muted);
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 .side-item .more svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: currentColor;
 }
 .side-item:hover .more,
-.side-item.active .more,
 .side-item .more:focus-visible {
   opacity: 1;
 }
@@ -287,13 +405,56 @@ a {
   color: var(--text);
   background: color-mix(in oklab, var(--text) 8%, transparent);
 }
+/* New reply: a glowing dot in the item's color, a brighter name. */
+.side-item .unread-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 6px;
+  border-radius: 50%;
+  background: var(--item-accent);
+  box-shadow: 0 0 8px var(--item-accent);
+}
+.side-item.unread .unread-dot {
+  display: block;
+}
+.side-item.unread .name {
+  color: var(--text);
+  font-weight: 600;
+}
+.unread-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font: 600 10px/1 var(--mono);
+  color: var(--accent-text);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 12px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.side-btn .unread-badge {
+  position: static;
+  margin-left: auto;
+  box-shadow: none;
+}
+.side-btn .unread-badge:not([hidden]) + .hint {
+  margin-left: 8px;
+}
+
 /* ⌘1…⌘9 hints, shown while ⌘ (or Ctrl) is held */
 .side-item .kbd {
   display: none;
-  font: 11px/1.6 var(--mono);
+  font: 10px/1.7 var(--mono);
   color: var(--muted);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-bottom-width: 2px;
+  border-radius: 4px;
   padding: 0 5px;
   margin-right: 6px;
   background: var(--bg);
@@ -317,14 +478,14 @@ body.show-keys .side-item .more {
   min-width: 0;
   font: inherit;
   color: var(--text);
-  background: var(--raised);
+  background: var(--bg);
   border: 1px solid var(--accent);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 1px 6px;
   outline: none;
 }
 .side-list-empty {
-  color: var(--muted);
+  color: var(--faint);
   font-size: 13px;
   padding: 10px;
 }
@@ -332,7 +493,7 @@ body.show-keys .side-item .more {
   display: grid;
   gap: 2px;
   padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
 }
 /* Connection status: just a dot, at the top of the sidebar next to its
    toggle (the state is in the tooltip and announced to screen readers). */
@@ -354,23 +515,24 @@ body.show-keys .side-item .more {
 }
 .conn::before {
   content: '';
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--conn);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--conn) 22%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--conn) 18%, transparent), 0 0 10px color-mix(in oklab, var(--conn) 60%, transparent);
 }
 .conn[data-state='connecting']::before,
 .conn[data-state='offline']::before {
   animation: conn-pulse 1.2s ease-in-out infinite;
 }
 /* With the sidebar closed, the floating toggle shows a dot only when the
-   connection isn't healthy. */
+   connection isn't healthy (bottom corner; the top one is for the unread
+   count). */
 #open-sidebar[data-conn='connecting']::after,
 #open-sidebar[data-conn='offline']::after {
   content: '';
   position: absolute;
-  top: -3px;
+  bottom: -3px;
   right: -3px;
   width: 9px;
   height: 9px;
@@ -410,11 +572,11 @@ body.show-keys .side-item .more {
   padding: 0;
 }
 .panel-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.7;
   stroke-linejoin: round;
 }
 #open-sidebar {
@@ -422,10 +584,12 @@ body.show-keys .side-item .more {
   top: calc(10px + env(safe-area-inset-top));
   left: 12px;
   z-index: 5;
-  background: var(--raised);
+  background: color-mix(in oklab, var(--raised) 88%, transparent);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   opacity: 0;
   visibility: hidden;
   transform: translateX(-6px);
@@ -443,42 +607,69 @@ body.sidebar-collapsed #open-sidebar {
   z-index: 30;
   background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 4px;
-  min-width: 180px;
+  min-width: 190px;
   box-shadow: var(--shadow);
   display: grid;
+  animation: pop-in 0.14s var(--ease);
 }
 #menu button {
   background: none;
   border: none;
   text-align: left;
-  padding: 9px 12px;
-  border-radius: 6px;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 5px;
 }
 #menu button:hover {
-  background: var(--panel);
+  background: var(--raised-2);
 }
 #menu button.danger {
   color: var(--danger);
+}
+#menu button.danger:hover {
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.98);
+  }
 }
 
 #toast {
   position: fixed;
   left: 50%;
-  top: calc(56px + env(safe-area-inset-top));
+  top: calc(16px + env(safe-area-inset-top));
   transform: translateX(-50%);
   z-index: 50;
-  background: var(--text);
-  color: var(--bg);
-  border-radius: 10px;
-  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--raised-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 14px 9px 12px;
   font-size: 14px;
   max-width: calc(100vw - 32px);
+  box-shadow: var(--shadow);
+  animation: pop-in 0.18s var(--ease);
+}
+#toast::before {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 #toast.error {
+  border-color: color-mix(in oklab, var(--danger) 45%, var(--line));
+}
+#toast.error::before {
   background: var(--danger);
-  color: #fff;
 }
 
 /* -------------------------------------------------------------- mobile */
@@ -497,7 +688,7 @@ body.sidebar-collapsed #open-sidebar {
     opacity: 1;
     visibility: visible;
     transform: translateX(-100%);
-    transition: transform 0.26s cubic-bezier(0.3, 0.7, 0.2, 1);
+    transition: transform 0.26s var(--ease);
     box-shadow: var(--shadow);
   }
   #sidebar > * {
@@ -511,7 +702,7 @@ body.sidebar-collapsed #open-sidebar {
     position: fixed;
     inset: 0;
     z-index: 15;
-    background: rgb(0 0 0 / 0.45);
+    background: rgb(0 0 0 / 0.5);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.26s ease, visibility 0s linear 0.26s;
@@ -534,7 +725,10 @@ body.sidebar-collapsed #open-sidebar {
   body,
   #sidebar,
   #open-sidebar,
-  #scrim {
+  #scrim,
+  #menu,
+  #toast {
     transition: none !important;
+    animation: none !important;
   }
 }

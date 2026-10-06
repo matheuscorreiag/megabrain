@@ -32,30 +32,47 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
 
 ## In the UI
 
-- **Chats** — the sidebar keeps a stable order (newest created first). Every
-  chat gets its own random **accent color** (fixed lightness/chroma in OKLCH,
-  so any hue reads well on the dark UI). **Rename**: double-click a name in the
-  sidebar, use its ⋯ menu, or click the title at the top.
-- **Usage above the message box** (right side) — model, this chat's
-  **context** and the account's **usage windows** (5h and 7d for Claude); tap
-  any of them for token counts and reset times.
+- **Chats** — the sidebar keeps a stable, numbered order (newest created
+  first; the number is the ⌘ shortcut). Every chat gets its own random
+  **color**: the accent at a fixed OKLCH lightness/chroma, and the whole page
+  faintly tinted with the same hue, so any of them reads well on the dark UI.
+  **Rename**: double-click a name in the sidebar or use its ⋯ menu.
+- **Status line under the message box** — this chat (number and title), the
+  model, this chat's **context** and the account's **usage windows** (5h and
+  7d for Claude); tap any gauge for token counts and reset times.
+- **Model and effort per chat** — tap the model in the status line: Default /
+  Fable / Opus / Sonnet / Haiku and an effort level (low … max; Haiku has
+  none). Changes apply from the next message: the agent process restarts and
+  resumes the session with the new flags (after the current turn, if one is
+  running). On a new chat the pick goes with the first message and is
+  remembered on that device for the next new chats.
+- **New replies** — a chat whose turn ended while no device had it open (and
+  visible) is marked unread: a dot and "replied …" in the sidebar, a count on
+  the sidebar button and in the tab title, the installed app's badge, a count
+  on "Back to chats" in the terminal page, and a notice with the start of the
+  reply that stays 30 s (paused while hovered or while the page is in the
+  background) — tap it or press ⌘J to open the chat.
+  Opening the chat marks it read on every device.
 - **Shortcuts screen** (sidebar → Shortcuts, or ⌘/) — lists every shortcut
-  and checks them live: press one and it gets a ✓ if it works in that window.
-  On that screen keys are only checked, not run.
+  and its keys.
 
   | Keys | Action |
   | --- | --- |
   | ⌘1 … ⌘9 | open chat 1–9 |
-  | ⌃⌘N | new chat |
+  | ⌘N (installed app) or ⌃⌘N | new chat |
   | ⌘B | show / hide the sidebar |
+  | ⌘J | open the latest reply (the notice's chat, or the newest unread) |
   | ⌘/ | Shortcuts screen |
   | Enter / ⇧Enter | send / new line |
   | Esc | stop the agent |
 
   Off macOS: Ctrl instead of ⌘, and Ctrl+Alt+N for a new chat. Install the app (Chrome: "Install"; Safari: "Add
-  to Dock") so ⌘1…⌘9 aren't taken by browser tabs.
-- Streaming Markdown, code blocks with "copy", tool calls as cards (Bash,
-  Read, Edit with a diff, todo lists…).
+  to Dock") so ⌘1…⌘9 aren't taken by browser tabs — and so ⌘N opens a new chat
+  instead of a browser window (in a Chrome tab the browser keeps ⌘N).
+- The thread reads like a log: numbered, timestamped prompts, and the reply
+  hanging from each on a rail where tool calls (Bash, Read, Edit with a diff,
+  todo lists…) are one-line entries that open on click. Streaming Markdown,
+  code blocks with "copy".
 - **Images** — the ones you attach (phone photos are downscaled first), the
   ones the agent reads with tools, and any image whose path it mentions. Tap
   to enlarge. Other attachments are saved to `~/.term-hub/media/` and their
@@ -67,9 +84,10 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
 | --- | --- |
 | `public/loader.js` | the "Thinking… / Using Bash…" indicator (contract at the top) |
 | `public/render.js` | how messages, tools (`TOOLS`) and images are drawn |
-| `public/base.css` | shared by both pages: color tokens, sidebar, item rows, menus |
-| `public/ui.js` | shared by both pages: sidebar, menus, inline rename, status dot, accents |
-| `public/style.css` | chat page layout, thread, composer, loader animations |
+| `public/base.css` | shared by both pages: fonts, color tokens (all derived from the hue `--h`), sidebar, item rows, menus |
+| `public/fonts/` | Instrument Sans and Martian Mono (OFL, licenses alongside) |
+| `public/ui.js` | shared by both pages: sidebar, menus, inline rename, status dot, page tint and accents |
+| `public/style.css` | chat page layout, thread rail, composer, status line, loader animations |
 | `public/app.js` | chat state, WebSocket, usage, shortcuts, composer |
 | `public/terminal/*` | terminal page (tabs, Files panel, phone key strip) |
 | `lib/chat.js` | processes, queue, persistence, item format, accent picking |
@@ -80,7 +98,8 @@ No build step: edit and reload the page (restart the server for `lib/`).
 ### Another agent
 
 Create `lib/agents/<type>.js` exporting `{ name, spawnArgs, userMessage,
-interruptMessage, createParser }` (and optionally `limitLabel`, `modelLabel`) —
+interruptMessage, createParser }` (and optionally `limitLabel`, `modelLabel`,
+and the per-chat choices `models` / `efforts`) —
 see the neutral events at the top of `claude.js` — register it in
 `lib/agents/index.js` and set `agent.type` in `config.json`.
 
@@ -95,7 +114,8 @@ see the neutral events at the top of `claude.js` — register it in
 | `agent.command` | `claude` | the agent's binary |
 | `agent.cwd` | `~` | folder the agent runs in |
 | `agent.args` | `["--dangerously-skip-permissions"]` | extra arguments |
-| `agent.model` | `null` | model (`null` = the account default) |
+| `agent.model` | `null` | model for chats left on "Default" (`null` = the account default) |
+| `agent.effort` | `null` | effort for chats left on "Default" (`null` = the agent's default) |
 | `agent.idleMinutes` | `30` | stop idle processes (sessions resume later) |
 | `agent.appendSystemPrompt` | (text about the UI) | extra instructions; `""` turns it off |
 | `root`, `workdir`, `shell` | | used by the terminal part |
@@ -139,7 +159,7 @@ opens the same ones over SSH (`hub`, `hub 2`, `hub new`).
 | Keys | Action |
 | --- | --- |
 | ⌘1 … ⌘9 | switch terminal |
-| ⌃⌘N | new terminal (in the folder open in Files) |
+| ⌘N (installed app) or ⌃⌘N | new terminal (in the folder open in Files) |
 | ⌘B | show / hide the sidebar |
 | ⌘E | show / hide Files |
 

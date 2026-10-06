@@ -3,13 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#1c1d20" />
+    <meta name="theme-color" content="#0a0f14" />
     <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>New chat</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/martian-mono.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/base.css" />
     <link rel="stylesheet" href="/style.css" />
   </head>
@@ -23,11 +25,12 @@
           <span id="conn" class="conn" role="status" aria-live="polite"><span class="sr-only"></span></span>
         </div>
         <button id="new-chat" class="side-btn primary" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          <span class="swatch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></span>
           <span>New chat</span>
           <kbd class="hint" id="new-chat-hint"></kbd>
         </button>
       </div>
+      <div class="side-label label"><span>Chats</span><span class="count" id="chat-count"></span></div>
       <nav id="chat-list" class="side-list"></nav>
       <div class="side-foot">
         <button id="open-shortcuts" class="side-btn" type="button">
@@ -47,6 +50,7 @@
     <main id="main">
       <button id="open-sidebar" class="icon-btn panel-btn" type="button" aria-label="Show sidebar" title="Show sidebar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
+        <span id="unread-badge" class="unread-badge" hidden aria-label="Chats with new replies"></span>
       </button>
 
       <section id="messages">
@@ -56,34 +60,45 @@
         <div id="thread"></div>
         <div id="loader-slot"></div>
       </section>
-      <button id="jump" type="button" hidden aria-label="Scroll to bottom">↓</button>
+      <button id="jump" type="button" hidden aria-label="Scroll to bottom">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+      </button>
 
       <section id="shortcuts-view" aria-labelledby="shortcuts-title">
         <div class="shortcuts-inner">
+          <p class="label">Keyboard</p>
           <h1 id="shortcuts-title">Shortcuts</h1>
-          <p class="shortcuts-hint">
-            Press a shortcut to check that it works in this window — it gets a ✓.
-            On this screen shortcuts are only checked, not run.
-          </p>
           <ul id="shortcut-list"></ul>
           <button id="back-to-chat" class="side-btn" type="button">← Back to chat</button>
         </div>
       </section>
 
       <footer id="composer-wrap">
-        <div id="queue"></div>
-        <div id="attachments"></div>
-        <div id="chat-stats"></div>
-        <form id="composer">
-          <button id="attach" class="icon-btn" type="button" aria-label="Attach">＋</button>
-          <textarea id="input" rows="1" placeholder="Message…" autocomplete="off"></textarea>
-          <button id="send" type="submit" aria-label="Send">↑</button>
-        </form>
+        <div class="dock">
+          <div id="queue"></div>
+          <div id="attachments"></div>
+          <form id="composer">
+            <button id="attach" class="icon-btn" type="button" aria-label="Attach" title="Attach files">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20 11.5-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" /></svg>
+            </button>
+            <textarea id="input" rows="1" placeholder="Message…" autocomplete="off"></textarea>
+            <button id="send" type="submit" aria-label="Send">
+              <svg class="i-send" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+              <svg class="i-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5" /></svg>
+            </button>
+          </form>
+        </div>
+        <div id="statusline">
+          <div id="chat-title"></div>
+          <div id="chat-stats"></div>
+        </div>
         <input type="file" id="file-input" multiple hidden />
       </footer>
     </main>
 
     <div id="usage-panel" hidden data-popover role="dialog" aria-label="Usage"></div>
+    <div id="model-panel" hidden data-popover role="dialog" aria-label="Model and effort"></div>
+    <div id="notice" hidden role="status" aria-live="polite"></div>
     <div id="lightbox" hidden>
       <img alt="" />
       <div class="lightbox-bar">

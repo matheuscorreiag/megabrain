@@ -5,10 +5,10 @@
 
 import { Thread } from '/render.js';
 import { createLoader } from '/loader.js';
-import { $, h, touch, narrow, isMac, MOD, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, initial, MORE_ICON, ago } from '/ui.js';
+import { $, h, touch, narrow, isMac, MOD, standalone, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
-const local = storage('chat'); // last chat, unsent drafts
+const local = storage('chat'); // last chat, unsent drafts, settings for new chats
 
 const thread = new Thread($('#thread'));
 const input = $('#input');
@@ -27,6 +27,9 @@ const state = {
   attachments: [], // { id, name, mediaType, preview, uploading, file, url }
   sends: new Map(), // ref -> what was sent, to restore it on error
   editing: false, // a title is being renamed inline: hold list re-renders
+  agent: { models: [], efforts: [] }, // per-chat choices the agent offers
+  newSettings: { model: null, effort: null, ...local.get('newSettings', {}) }, // for the next new chat
+  listed: false, // the first list arrived (later unread changes are news)
 };
 let loader = null;
 
@@ -54,10 +57,11 @@ const level = (pct) => (pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '');
 
 // ---------------------------------------------------------------- accents
 
-// Every chat has its own hue (picked by the server).
+// Every chat has its own hue (picked by the server); it tints the whole
+// page. The New chat button previews the next one.
 function applyAccent() {
-  const hue = state.chatId ? current()?.hue : state.nextHue;
-  document.documentElement.style.setProperty('--accent', accentFor(hue));
+  setHue(state.chatId ? current()?.hue : state.nextHue);
+  $('#new-chat').style.setProperty('--swatch', accentFor(state.nextHue));
 }
 
 // Inline rename (ui.js) with the list held still while the field is open.
@@ -87,6 +91,7 @@ function connect() {
   socket.onopen = () => {
     retries = 0;
     setConn('online');
+    sendVisibility(); // before "open": a visible page marks the chat read
     openChat(state.chatId); // (re)load what's on screen
   };
   socket.onmessage = (e) => onMessage(JSON.parse(e.data));
@@ -105,22 +110,34 @@ function wsSend(msg) {
 }
 
 // Phones drop sockets while asleep; reconnect as soon as the page is back.
+// The server also needs to know: chats only count as read on a visible page.
+const sendVisibility = () => wsSend({ op: 'visibility', visible: !document.hidden });
 document.addEventListener('visibilitychange', () => {
+  document.body.classList.toggle('away', document.hidden); // holds the notice's countdown
   if (!document.hidden && ws?.readyState !== WebSocket.OPEN) {
     retries = 0;
     connect();
-  }
+  } else sendVisibility();
 });
 
 function onMessage(m) {
   const here = m.chatId && m.chatId === state.chatId;
   switch (m.op) {
-    case 'chats':
+    case 'agent':
+      state.agent = { models: m.models, efforts: m.efforts };
+      renderStats();
+      break;
+
+    case 'chats': {
+      const before = new Map(state.chats.map((c) => [c.id, c]));
       state.chats = m.chats;
       state.nextHue = m.nextHue;
+      if (state.listed) for (const c of m.chats) if (c.unread && !before.get(c.id)?.unread) notify(c);
+      state.listed = true;
       renderList();
       renderHeader();
       break;
+    }
 
     case 'limits':
       state.limits = m.limits;
@@ -224,7 +241,6 @@ function setView(view) {
   state.view = view;
   document.body.dataset.view = view;
   $('#open-shortcuts').classList.toggle('active', view === 'shortcuts');
-  if (view === 'shortcuts') renderShortcuts();
   hidePopovers();
   renderHeader();
   renderList();
@@ -239,6 +255,7 @@ function openChat(id) {
   applyStatus('idle', []);
   hidePopovers();
   $('#welcome').hidden = Boolean(state.chatId);
+  if (!state.chatId) scrollToBottom();
   if (changed) restoreDraft();
   renderHeader();
   renderList();
@@ -301,7 +318,7 @@ function listItem(c) {
     },
     avatar,
     h('span', { class: 'text' }, name, sub),
-    h('span', { class: 'side' }, kbd, more),
+    h('span', { class: 'side' }, h('span', { class: 'unread-dot', title: 'New reply' }), kbd, more),
   );
   return { el, avatar, name, sub, kbd };
 }
@@ -324,27 +341,120 @@ function renderList() {
     item.el.classList.toggle('active', state.view === 'chat' && c.id === state.chatId);
     item.el.style.setProperty('--item-accent', accentFor(c.hue));
     item.el.title = i < 9 ? `${name}  (${MOD}${i + 1})` : name;
-    item.avatar.textContent = initial(c.title);
+    item.avatar.textContent = indexLabel(i);
     item.avatar.classList.toggle('busy', busy);
     item.name.textContent = name;
-    item.sub.textContent = busy ? (c.queued ? `working · ${c.queued} queued` : 'working…') : ago(c.updated) === 'now' ? 'just now' : `${ago(c.updated)} ago`;
-    item.sub.classList.toggle('busy', busy);
+    const when = ago(c.updated) === 'now' ? 'just now' : `${ago(c.updated)} ago`;
+    item.sub.textContent = busy ? (c.queued ? `working · ${c.queued} queued` : 'working…') : c.unread ? `replied ${when}` : when;
+    item.sub.classList.toggle('busy', busy || c.unread);
+    item.el.classList.toggle('unread', c.unread && !busy);
     item.kbd.textContent = i < 9 ? `${MOD}${i + 1}` : '';
     item.kbd.hidden = i >= 9;
     nav.append(item.el); // moves existing nodes into order
   });
+  $('#chat-count').textContent = state.chats.length ? indexLabel(state.chats.length - 1) : '';
   let empty = nav.querySelector('.side-list-empty');
   if (!state.chats.length && !empty) nav.append((empty = h('div', { class: 'side-list-empty', textContent: 'No chats yet.' })));
   if (state.chats.length) empty?.remove();
+  renderUnread();
 }
 
-// There's no header: this keeps the tab title, the accent and the stats
-// above the composer in sync with the open chat.
+// ---------------------------------------------------------------- unread
+
+// The server decides what's unread (a turn ended while no device had the
+// chat open and visible); opening a chat on a visible page marks it read.
+const unreadCount = () => state.chats.filter((c) => c.unread).length;
+
+// Count on the floating sidebar toggle (the list is hidden) and on the
+// installed app's icon.
+function renderUnread() {
+  const n = unreadCount();
+  const badge = $('#unread-badge');
+  badge.hidden = !n;
+  badge.textContent = n > 9 ? '9+' : String(n);
+  try {
+    if (n) navigator.setAppBadge?.(n)?.catch(() => {});
+    else navigator.clearAppBadge?.()?.catch(() => {});
+  } catch {}
+}
+
+// A chat that isn't on screen just replied: a notice with the start of the
+// reply that opens it (click, or ⌘J). It stays NOTICE_SECONDS on screen —
+// a bar shows the time left, which stops while hovered or while the page is
+// in the background (see style.css), so it isn't missed.
+const NOTICE_SECONDS = 30;
+let noticeChat = null;
+
+function notify(chat) {
+  if (chat.id === state.chatId && state.view === 'chat' && !document.hidden) return;
+  noticeChat = chat.id;
+  const others = state.chats.filter((c) => c.unread && c.id !== chat.id).length;
+  const el = $('#notice');
+  el.style.setProperty('--item-accent', accentFor(chat.hue));
+  el.style.setProperty('--notice-time', `${NOTICE_SECONDS}s`);
+  const time = h('span', { class: 'notice-time' });
+  time.addEventListener('animationend', hideNotice);
+  el.replaceChildren(
+    h(
+      'div',
+      { class: 'notice-head' },
+      h('span', { class: 'dot' }),
+      h('span', { textContent: 'New reply' }),
+      h('span', { class: 'num', textContent: indexLabel(state.chats.indexOf(chat)) }),
+      h('button', { type: 'button', class: 'notice-x', 'aria-label': 'Dismiss', textContent: '×', onclick: (e) => (e.stopPropagation(), hideNotice()) }),
+    ),
+    h('div', { class: 'notice-title', textContent: chat.title || 'New chat' }),
+    h('p', { class: 'notice-preview', textContent: chat.preview || 'The turn ended — open the chat to see it.' }),
+    h(
+      'div',
+      { class: 'notice-foot' },
+      others ? h('span', { class: 'notice-more', textContent: `+${others} more unread` }) : null,
+      h('span', { class: 'notice-open' }, 'Open', touch ? null : h('kbd', { textContent: `${MOD}J` })),
+    ),
+    time,
+  );
+  el.onclick = openReply;
+  el.hidden = false;
+}
+
+function hideNotice() {
+  $('#notice').hidden = true;
+  noticeChat = null;
+}
+
+// The chat in the notice, else the newest unread one. False when there's none.
+function openReply() {
+  const newest = state.chats.filter((c) => c.unread).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0))[0];
+  const id = noticeChat || newest?.id;
+  if (!id) return false;
+  hideNotice();
+  go(id);
+}
+
+// There's no header: this keeps the tab title, the accent and the status
+// line under the composer in sync with the open chat.
 function renderHeader() {
   const chat = current();
-  document.title = state.view === 'shortcuts' ? 'Shortcuts' : chat?.title || 'New chat';
+  const n = unreadCount();
+  document.title = `${n ? `(${n}) ` : ''}${state.view === 'shortcuts' ? 'Shortcuts' : chat?.title || 'New chat'}`;
   applyAccent();
+  renderTitle();
   renderStats();
+}
+
+// The open chat in the status line: its number and title.
+function renderTitle() {
+  const chat = current();
+  const i = state.chats.indexOf(chat);
+  const el = $('#chat-title');
+  el.title = chat?.title || '';
+  el.replaceChildren(
+    ...[
+      h('span', { class: 'swatch' }),
+      chat && h('span', { class: 'num', textContent: indexLabel(i) }),
+      h('span', { class: 't', textContent: chat?.title || 'New chat' }),
+    ].filter(Boolean),
+  );
 }
 
 $('#new-chat').addEventListener('click', newChat);
@@ -402,11 +512,94 @@ function renderStats() {
   const chat = current();
   const ctx = chat?.context;
   const parts = [];
-  if (chat?.modelLabel || chat?.model) parts.push(h('span', { class: 'model', textContent: chat.modelLabel || chat.model }));
+  if (state.agent.models.length) parts.push(modelButton(chat));
+  else if (chat?.modelLabel || chat?.model) parts.push(h('span', { class: 'model', textContent: chat.modelLabel || chat.model }));
   if (ctx?.window) parts.push(stat({ label: 'ctx', pct: contextPct(ctx), title: `Context: ${tokens(ctx.used)} / ${tokens(ctx.window)} tokens` }));
   for (const w of state.limits?.windows || []) parts.push(stat({ label: w.label, pct: windowPct(w), title: `${w.label} usage — ${resetsIn(w.resetsAt)}` }));
   $('#chat-stats').replaceChildren(...parts);
   if (!$('#usage-panel').hidden) renderUsagePanel();
+  if (!$('#model-panel').hidden) renderModelPanel();
+}
+
+// ------------------------------------------------------ model and effort
+
+// Per chat; a new chat uses the ones picked for it (kept per device).
+const settingsOf = (chat) => (chat ? { model: null, effort: null, ...chat.settings } : state.newSettings);
+const modelOption = (id) => state.agent.models.find((m) => m.id === id);
+
+function modelButton(chat) {
+  const { model, effort } = settingsOf(chat);
+  // The exact model once a process reported it, else the choice.
+  const label = (chat ? chat.modelLabel : modelOption(model)?.label) || 'Default model';
+  const showEffort = effort && modelOption(model)?.effort !== false;
+  return h(
+    'button',
+    { type: 'button', class: 'model', title: 'Model and effort', 'data-popover-anchor': '', onclick: (e) => openModelPanel(e.currentTarget) },
+    h('span', { class: 'model-name', textContent: label }),
+    h('span', { class: 'model-short', textContent: label.split(' · ')[0] }), // phones: no "· 1M"
+    showEffort ? h('span', { class: 'effort', textContent: effort }) : null,
+  );
+}
+
+function renderModelPanel() {
+  const chat = current();
+  const { model, effort } = settingsOf(chat);
+  const noEffort = modelOption(model)?.effort === false;
+  const models = [{ id: null, label: 'Default', note: 'account setting' }, ...state.agent.models];
+  $('#model-panel').replaceChildren(
+    h(
+      'section',
+      { class: 'pick-group' },
+      h('h2', { textContent: 'Model' }),
+      ...models.map((m) =>
+        h(
+          'button',
+          { type: 'button', class: `pick${m.id === model ? ' on' : ''}`, onclick: () => changeSettings({ model: m.id }) },
+          h('span', { class: 'radio' }),
+          h('span', { class: 'pick-label', textContent: m.label }),
+          m.note ? h('span', { class: 'pick-note', textContent: m.note }) : null,
+        ),
+      ),
+    ),
+    state.agent.efforts.length
+      ? h(
+          'section',
+          { class: 'pick-group' },
+          h('h2', { textContent: 'Effort' }),
+          h(
+            'div',
+            { class: 'segmented' },
+            ...[null, ...state.agent.efforts].map((e) =>
+              h('button', { type: 'button', class: !noEffort && e === effort ? 'on' : '', disabled: noEffort, textContent: e ?? 'default', onclick: () => changeSettings({ effort: e }) }),
+            ),
+          ),
+        )
+      : null,
+    h('div', { class: 'meter-foot', textContent: chat ? 'Applies from the next message.' : 'For this new chat (and the next ones on this device).' }),
+  );
+}
+
+function openModelPanel(anchor) {
+  const panel = $('#model-panel');
+  if (!panel.hidden) return hidePopovers();
+  hidePopovers();
+  renderModelPanel();
+  panel.hidden = false;
+  place(panel, anchor);
+}
+
+async function changeSettings(changes) {
+  const chat = current();
+  if (!chat) {
+    state.newSettings = { ...state.newSettings, ...changes };
+    local.set('newSettings', state.newSettings);
+    return renderStats();
+  }
+  // Show it right away; the server's list confirms it.
+  chat.settings = { ...settingsOf(chat), ...changes };
+  if ('model' in changes) chat.modelLabel = modelOption(changes.model)?.label || '';
+  renderStats();
+  await api('PATCH', `/api/chats/${chat.id}`, changes).catch(fail);
 }
 
 function renderUsagePanel() {
@@ -446,8 +639,8 @@ function openUsage(anchor) {
 // ------------------------------------------------------------- shortcuts
 
 // One table drives the key handling and the Shortcuts screen. `match` gets
-// the keydown event; `run` returns false when it didn't apply. `testOnly`
-// keys are handled elsewhere (the composer) and only listed/checked here.
+// the keydown event; `run` returns false when it didn't apply. Entries
+// without `match` are handled elsewhere (composer, sidebar) and only listed.
 const mod = (e) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey) && !e.altKey;
 const SHORTCUTS = [
   {
@@ -464,9 +657,10 @@ const SHORTCUTS = [
   },
   {
     id: 'new',
-    keys: [isMac ? '⌃⌘N' : 'Ctrl+Alt+N'],
+    keys: [`${MOD}N`, 'or', isMac ? '⌃⌘N' : 'Ctrl+Alt+N'],
     label: 'New chat',
-    match: (e) => e.code === 'KeyN' && !e.shiftKey && (isMac ? e.metaKey && e.ctrlKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey),
+    note: `${MOD}N in the installed app — a browser tab keeps it for a new window`,
+    match: (e) => e.code === 'KeyN' && !e.shiftKey && (mod(e) || (isMac ? e.metaKey && e.ctrlKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey)),
     run: () => newChat(),
   },
   {
@@ -477,15 +671,23 @@ const SHORTCUTS = [
     run: () => toggleSidebar(),
   },
   {
+    id: 'reply',
+    keys: [`${MOD}J`],
+    label: 'Open the latest reply',
+    note: 'The chat in the notice, or the newest unread one',
+    match: (e) => mod(e) && !e.shiftKey && e.code === 'KeyJ',
+    run: () => openReply(),
+  },
+  {
     id: 'shortcuts',
     keys: [`${MOD}/`],
     label: 'Open this screen',
     match: (e) => mod(e) && (e.key === '/' || e.code === 'Slash'), // ABNT keyboards put / elsewhere
     run: () => (location.hash = 'shortcuts'),
   },
-  { id: 'send', keys: ['Enter'], label: 'Send message', note: 'On a phone, use the send button', testOnly: true, match: (e) => e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey },
-  { id: 'newline', keys: ['⇧Enter'], label: 'New line in the message', testOnly: true, match: (e) => e.key === 'Enter' && e.shiftKey },
-  { id: 'stop', keys: ['Esc'], label: 'Stop the agent', note: 'While it is working, with the message box focused', testOnly: true, match: (e) => e.key === 'Escape' },
+  { id: 'send', keys: ['Enter'], label: 'Send message', note: 'On a phone, use the send button' },
+  { id: 'newline', keys: ['⇧Enter'], label: 'New line in the message' },
+  { id: 'stop', keys: ['Esc'], label: 'Stop the agent', note: 'While it is working, with the message box focused' },
   { id: 'rename', keys: ['Double-click'], label: 'Rename a chat', note: 'Double-click it in the sidebar, or use its ⋯ menu' },
 ];
 
@@ -493,48 +695,26 @@ document.addEventListener(
   'keydown',
   (e) => {
     const s = SHORTCUTS.find((x) => x.match?.(e));
-    if (!s || e.isComposing) return;
-    if (state.view === 'shortcuts') {
-      // On the Shortcuts screen keys are only checked, so testing ⌘1 doesn't navigate away.
-      if (s.testOnly && e.target.closest?.('button, a')) return; // Enter on a focused button still clicks it
-      e.preventDefault();
-      flash(s.id);
-      return;
-    }
-    if (s.testOnly || s.run(e) === false) return;
+    if (!s || e.isComposing || s.run(e) === false) return;
     e.preventDefault();
-    flash(s.id);
   },
   true,
 );
 
-$('#new-chat-hint').textContent = SHORTCUTS.find((x) => x.id === 'new').keys[0];
+$('#new-chat-hint').textContent = standalone ? `${MOD}N` : isMac ? '⌃⌘N' : 'Ctrl+Alt+N';
 $('#shortcuts-hint').textContent = `${MOD}/`;
 
-const verified = new Set(); // shortcuts seen working in this window
-
-// Marks a shortcut as working; shown with a ✓ on the Shortcuts screen.
-function flash(id) {
-  verified.add(id);
-  const row = document.querySelector(`#shortcut-list li[data-id="${id}"]`);
-  if (!row) return;
-  row.classList.add('works', 'hit');
-  setTimeout(() => row.classList.remove('hit'), 700);
-}
-
-function renderShortcuts() {
-  $('#shortcut-list').replaceChildren(
-    ...SHORTCUTS.map((s) =>
-      h(
-        'li',
-        { class: verified.has(s.id) ? 'works' : '', dataset: { id: s.id } },
-        h('span', { class: 'what' }, s.label, s.note ? h('small', { textContent: s.note }) : null),
-        h('span', { class: 'keys' }, s.keys.map((k) => (k === '…' ? h('span', { textContent: '…' }) : h('kbd', { textContent: k })))),
-        h('span', { class: 'check', textContent: '✓', title: 'Works here' }),
-      ),
+// The Shortcuts screen: what each one does and its keys.
+$('#shortcut-list').replaceChildren(
+  ...SHORTCUTS.map((s) =>
+    h(
+      'li',
+      {},
+      h('span', { class: 'what' }, s.label, s.note ? h('small', { textContent: s.note }) : null),
+      h('span', { class: 'keys' }, s.keys.map((k) => (k === '…' || k === 'or' ? h('span', { textContent: k }) : h('kbd', { textContent: k })))),
     ),
-  );
-}
+  ),
+);
 $('#open-shortcuts').addEventListener('click', () => (location.hash = 'shortcuts'));
 $('#back-to-chat').addEventListener('click', () => go(state.chatId));
 
@@ -615,7 +795,6 @@ function updateSend() {
   const stop = state.status === 'running' && empty;
   const send = $('#send');
   send.classList.toggle('stop', stop);
-  send.textContent = stop ? '■' : '↑';
   send.setAttribute('aria-label', stop ? 'Stop' : 'Send');
   send.disabled = !stop && (empty || state.attachments.some((a) => a.uploading));
 }
@@ -638,14 +817,12 @@ input.addEventListener('input', () => {
 });
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.isComposing) {
-    if (e.shiftKey) return flash('newline');
-    if (touch) return;
+    if (e.shiftKey || touch) return;
     e.preventDefault();
     $('#composer').requestSubmit();
   }
   if (e.key === 'Escape' && state.status === 'running') {
     wsSend({ op: 'interrupt', chatId: state.chatId });
-    flash('stop');
   }
 });
 
@@ -660,8 +837,8 @@ $('#composer').addEventListener('submit', (e) => {
   if (state.attachments.some((a) => a.uploading)) return toast('Wait for the attachments to upload');
   const ref = randomId();
   const attachments = state.attachments.map((a) => ({ file: a.file, name: a.name }));
-  if (!wsSend({ op: 'send', ref, chatId: state.chatId, text, attachments })) return toast('Not connected to the server', true);
-  flash('send');
+  const settings = state.chatId ? undefined : state.newSettings; // a new chat starts with these
+  if (!wsSend({ op: 'send', ref, chatId: state.chatId, text, attachments, settings })) return toast('Not connected to the server', true);
   state.sends.set(ref, { text, attachments: state.attachments });
   input.value = '';
   local.set(draftKey(), null);
