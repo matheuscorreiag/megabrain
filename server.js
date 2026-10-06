@@ -15,6 +15,7 @@ import { APP_DIR, HOME, HOSTNAME, config, authorized, fromThisMac, sameOrigin, r
 import { loadChats, handleChatApi, handleChatUpgrade, serveMedia, stopChats, pauseChats } from './lib/chat.js';
 import { handleTerminalApi, handleTerminalUpgrade, terminalInfo, detachTerminals } from './lib/terminal.js';
 import { power, setPower, keepAwake } from './lib/power.js';
+import { networkInfo } from './lib/network.js';
 
 const PUBLIC_DIR = path.join(APP_DIR, 'public');
 const VENDOR = {
@@ -72,6 +73,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { on });
   }
   if (!power.on) throw new HttpError(503, 'turned off');
+  if (url.pathname === '/api/network' && req.method === 'GET') return sendJson(res, 200, await networkInfo());
   if (await handleChatApi(req, res, url)) return;
   if (await handleTerminalApi(req, res, url)) return;
   throw new HttpError(404, 'route not found');

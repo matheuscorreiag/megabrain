@@ -188,6 +188,7 @@ export function setupSidebar(key) {
   const local = storage('ui');
   if (local.get(key, false)) document.body.classList.add('sidebar-collapsed');
   setupResize(local);
+  setupSettings();
   const setDrawer = (open) => document.body.classList.toggle('sidebar-open', open);
   $('#scrim').addEventListener('click', () => setDrawer(false));
   return {
@@ -239,6 +240,86 @@ function setupResize(local) {
     apply();
     local.set('sidebarWidth', null);
   });
+}
+
+// The gear next to the status dot: for now, how to open the panel on another
+// device — the `tailscale serve` address (lib/network.js). The server only
+// listens on localhost, so it's that or nothing; a LAN IP won't answer.
+const GEAR_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>';
+
+function setupSettings() {
+  const button = h('button', {
+    id: 'open-settings',
+    class: 'icon-btn panel-btn',
+    type: 'button',
+    title: 'Settings',
+    'aria-label': 'Settings',
+    'data-popover-anchor': '',
+    innerHTML: GEAR_ICON,
+  });
+  const panel = h('div', { id: 'settings-panel', 'data-popover': '', hidden: true });
+  $('#conn').before(button);
+  document.body.append(panel);
+  button.addEventListener('click', async () => {
+    if (!panel.hidden) return hidePopovers();
+    hidePopovers();
+    panel.replaceChildren(h('h2', { textContent: 'Settings' }), h('p', { textContent: 'Looking up the network…' }));
+    panel.hidden = false;
+    place(panel, button);
+    let net;
+    try {
+      net = await api('GET', '/api/network');
+    } catch (err) {
+      net = { error: err.message };
+    }
+    if (panel.hidden) return;
+    panel.replaceChildren(h('h2', { textContent: 'Settings' }), ...networkSection(net));
+    place(panel, button);
+  });
+}
+
+function networkSection(net) {
+  const head = h('h3', { textContent: 'Open on another device' });
+  if (net.error) return [head, h('p', { textContent: `Couldn't look it up: ${net.error}` })];
+  if (!net.tailscale) return [head, h('p', { textContent: "Tailscale isn't running on this Mac. Other devices reach the panel through it." })];
+  const out = [head];
+  if (net.urls.length) {
+    out.push(...net.urls.map(addressRow));
+    out.push(h('p', { textContent: 'Open it in Chrome on Windows, on a phone or any computer. That device needs Tailscale, signed in with an allowed login.' }));
+  } else {
+    out.push(h('p', { textContent: 'Not shared on your tailnet yet. On this Mac, run:' }), addressRow(`tailscale serve --bg ${net.port}`));
+  }
+  if (net.funnel) out.push(h('p', { class: 'warn', textContent: 'Tailscale Funnel is on: the panel is reachable from the internet. Turn it off.' }));
+  if (!net.online) out.push(h('p', { class: 'warn', textContent: 'This Mac is offline on Tailscale right now.' }));
+  out.push(
+    h(
+      'dl',
+      { class: 'kv' },
+      net.name ? [h('dt', { textContent: 'Name' }), h('dd', { textContent: net.name })] : null,
+      net.ips.length ? [h('dt', { textContent: 'Tailscale IP' }), h('dd', { textContent: net.ips.join('\n') })] : null,
+    ),
+    h('p', { class: 'fine', textContent: 'Use the address above: the panel answers on its Tailscale HTTPS name, not on an IP or the local network.' }),
+  );
+  return out;
+}
+
+// A value you'll paste elsewhere, with a Copy button.
+function addressRow(text) {
+  const code = h('code', { textContent: text });
+  const copy = h('button', { type: 'button', textContent: 'Copy' });
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Older or stricter contexts: copy the selection instead.
+      getSelection().selectAllChildren(code);
+      document.execCommand('copy');
+    }
+    copy.textContent = 'Copied';
+    setTimeout(() => (copy.textContent = 'Copy'), 1500);
+  });
+  return h('div', { class: 'addr' }, code, copy);
 }
 
 // The status dot at the top of the sidebar (and on the floating toggle while

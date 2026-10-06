@@ -62,6 +62,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `server.js` | HTTP + WebSocket wiring, access checks, static files |
 | `lib/config.js` | `config.json` loading/defaults, shared helpers (auth, origin check, this-Mac check, env cleaning) |
 | `lib/power.js` | on / off: the keep-awake assertion (`caffeinate -i -w <pid>`) and the `off` marker |
+| `lib/network.js` | `GET /api/network` for the sidebar's Settings: the `tailscale serve` URL that proxies to our port, the tailnet name and IPs (tailscale CLI, cached 15 s) |
 | `lib/chat.js` | chats: processes, queue, interrupt, persistence, broadcast, uploads/media, accent hues |
 | `lib/agents/claude.js` | **the only Claude-specific code**: CLI args, message encoding, interrupt, event parsing, labels |
 | `lib/agents/index.js` | adapter registry by `agent.type` |
@@ -198,6 +199,10 @@ to a generic card.
   `/api/config`): `fromThisMac()` compares the client address — `X-Forwarded-For`, which
   `tailscale serve` overwrites with the client's tailnet IP, or the peer for
   direct localhost requests — with this machine's own interface addresses.
+- The Settings popover (gear next to the status dot, `setupSettings()` in
+  ui.js, both pages) shows the tailnet name, IPs and serve URL, computed at
+  runtime — they still never go in tracked files. It flags Tailscale Funnel
+  if it's on.
 - Cross-site protection: `Origin`/`Sec-Fetch-Site` checks on API and WebSocket
   upgrades, plus a required `X-Hub: 1` header on every write.
 - Media and `/api/local-image` (images under `$HOME` only) are served with a

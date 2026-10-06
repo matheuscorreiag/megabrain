@@ -62,6 +62,11 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   terminals stay open in tmux. It stays off across restarts and logins until
   turned on. The server process keeps running while off (idle), so the button
   can turn it back on.
+- **Settings** (the gear next to the status dot) — the address to open the
+  panel on another device (Chrome on Windows, a phone…), with Copy: the
+  `tailscale serve` URL, plus this Mac's Tailscale name and IPs. The server
+  only answers through that HTTPS name, never on a LAN IP; if it isn't shared
+  yet, it shows the `tailscale serve` command to run.
 - **Shortcuts screen** (sidebar → Shortcuts, or ⌘/) — lists every shortcut
   and its keys.
 
