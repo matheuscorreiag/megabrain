@@ -37,9 +37,12 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   **color**: the accent at a fixed OKLCH lightness/chroma, and the whole page
   faintly tinted with the same hue, so any of them reads well on the dark UI.
   **Rename**: double-click a name in the sidebar or use its ⋯ menu.
+  **Width**: drag the sidebar's right edge (double-click it for the default);
+  both pages share it.
 - **Status line under the message box** — this chat (number and title), the
   model, this chat's **context** and the account's **usage windows** (5h and
-  7d for Claude); tap any gauge for token counts and reset times.
+  7d for Claude) as progress bars; tap any of them for token counts and
+  reset times.
 - **Model and effort per chat** — tap the model in the status line: Default /
   Fable / Opus / Sonnet / Haiku and an effort level (low … max; Haiku has
   none). Changes apply from the next message: the agent process restarts and
@@ -53,6 +56,12 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   reply that stays 30 s (paused while hovered or while the page is in the
   background) — tap it or press ⌘J to open the chat.
   Opening the chat marks it read on every device.
+- **Turn off / Turn on** (only in a browser on the Mac itself: the sidebar's
+  Turn off, the "Turned off" screen's Turn on) — off, the Mac can idle-sleep
+  again, running chats stop, and every device gets the "Turned off" screen;
+  terminals stay open in tmux. It stays off across restarts and logins until
+  turned on. The server process keeps running while off (idle), so the button
+  can turn it back on.
 - **Shortcuts screen** (sidebar → Shortcuts, or ⌘/) — lists every shortcut
   and its keys.
 
@@ -132,7 +141,13 @@ npm start                             # http://127.0.0.1:7680
 
 scripts/launchd.sh install            # always on (login, restarts, no idle sleep)
 tailscale serve --bg 7680             # https://<mac>.<tailnet>.ts.net, tailnet only
+
+scripts/launchd.sh stop               # stop the process entirely, until start
+scripts/launchd.sh start              # start it again
 ```
+
+While it's on, the Mac doesn't idle-sleep (closing the lid still sleeps it);
+Turn off in the sidebar lifts that without stopping the process.
 
 On the phone: Tailscale app connected → open the URL → "Add to Home Screen".
 

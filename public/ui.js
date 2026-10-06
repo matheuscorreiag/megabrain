@@ -183,6 +183,7 @@ export function editInline(el, value, save, { onStart, onEnd } = {}) {
 export function setupSidebar(key) {
   const local = storage('ui');
   if (local.get(key, false)) document.body.classList.add('sidebar-collapsed');
+  setupResize(local);
   const setDrawer = (open) => document.body.classList.toggle('sidebar-open', open);
   $('#scrim').addEventListener('click', () => setDrawer(false));
   return {
@@ -192,6 +193,48 @@ export function setupSidebar(key) {
       local.set(key, document.body.classList.toggle('sidebar-collapsed') || null);
     },
   };
+}
+
+// Dragging the sidebar's right edge sets its width (--side-w), shared by both
+// pages; double-click goes back to the default. Desktop only (base.css).
+function setupResize(local) {
+  const root = document.documentElement;
+  let width = local.get('sidebarWidth', null);
+  const apply = () => {
+    if (!width) return root.style.removeProperty('--side-w');
+    root.style.setProperty('--side-w', `${Math.round(Math.max(200, Math.min(width, 520, innerWidth - 360)))}px`);
+  };
+  apply();
+  window.addEventListener('resize', apply);
+  const handle = h('div', { class: 'side-resize', role: 'separator', 'aria-orientation': 'vertical', title: 'Drag to resize · double-click to reset' });
+  $('#sidebar').append(handle);
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    document.body.classList.add('resizing');
+    const left = $('#sidebar').getBoundingClientRect().left;
+    const move = (ev) => {
+      width = ev.clientX - left;
+      apply();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener(
+      'lostpointercapture',
+      () => {
+        handle.removeEventListener('pointermove', move);
+        document.body.classList.remove('resizing');
+        width = parseInt(root.style.getPropertyValue('--side-w')) || null; // what was applied, clamped
+        local.set('sidebarWidth', width);
+      },
+      { once: true },
+    );
+  });
+  handle.addEventListener('dblclick', () => {
+    width = null;
+    apply();
+    local.set('sidebarWidth', null);
+  });
 }
 
 // The status dot at the top of the sidebar (and on the floating toggle while

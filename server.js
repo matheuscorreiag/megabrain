@@ -11,9 +11,10 @@
 import http from 'node:http';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { APP_DIR, HOME, HOSTNAME, config, authorized, sameOrigin, rejectUpgrade, HttpError, sendJson } from './lib/config.js';
-import { loadChats, handleChatApi, handleChatUpgrade, serveMedia, stopChats } from './lib/chat.js';
-import { handleTerminalApi, handleTerminalUpgrade, terminalInfo } from './lib/terminal.js';
+import { APP_DIR, HOME, HOSTNAME, config, authorized, fromThisMac, sameOrigin, rejectUpgrade, HttpError, sendJson } from './lib/config.js';
+import { loadChats, handleChatApi, handleChatUpgrade, serveMedia, stopChats, pauseChats } from './lib/chat.js';
+import { handleTerminalApi, handleTerminalUpgrade, terminalInfo, detachTerminals } from './lib/terminal.js';
+import { power, setPower, keepAwake } from './lib/power.js';
 
 const PUBLIC_DIR = path.join(APP_DIR, 'public');
 const VENDOR = {
@@ -54,8 +55,23 @@ async function handleApi(req, res, url) {
   // this server never grants.
   if (req.method !== 'GET' && req.headers['x-hub'] !== '1') throw new HttpError(403, 'missing X-Hub header');
   if (url.pathname === '/api/config' && req.method === 'GET') {
-    return sendJson(res, 200, { ...terminalInfo, home: HOME, hostname: HOSTNAME });
+    return sendJson(res, 200, { ...terminalInfo, home: HOME, hostname: HOSTNAME, thisMac: fromThisMac(req), on: power.on });
   }
+  // On / off (lib/power.js): only from a browser on this Mac.
+  if ((url.pathname === '/api/turn-off' || url.pathname === '/api/turn-on') && req.method === 'POST') {
+    if (!fromThisMac(req)) throw new HttpError(403, 'only a browser on this Mac can turn the server on or off');
+    const on = url.pathname === '/api/turn-on';
+    if (on !== power.on) {
+      console.log(on ? 'turned on' : 'turned off');
+      setPower(on);
+      if (!on) {
+        pauseChats();
+        detachTerminals();
+      }
+    }
+    return sendJson(res, 200, { on });
+  }
+  if (!power.on) throw new HttpError(503, 'turned off');
   if (await handleChatApi(req, res, url)) return;
   if (await handleTerminalApi(req, res, url)) return;
   throw new HttpError(404, 'route not found');
@@ -70,7 +86,10 @@ const server = http.createServer(async (req, res) => {
     if ((isApi || isMedia) && !sameOrigin(req)) throw new HttpError(403, 'origin not allowed');
     if (isApi) await handleApi(req, res, url);
     else if (req.method !== 'GET') throw new HttpError(405, 'method not allowed');
-    else if (isMedia) await serveMedia(res, url);
+    else if (isMedia) {
+      if (!power.on) throw new HttpError(503, 'turned off');
+      await serveMedia(res, url);
+    }
     else await serveStatic(res, url.pathname);
   } catch (err) {
     if (!(err instanceof HttpError)) console.error(req.method, url.pathname, err);
@@ -83,6 +102,7 @@ const server = http.createServer(async (req, res) => {
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url, 'http://localhost');
   if (!authorized(req) || !sameOrigin(req)) return rejectUpgrade(socket, 403, 'Forbidden');
+  if (!power.on) return rejectUpgrade(socket, 503, 'Service Unavailable');
   if (url.pathname === '/ws/chat') return handleChatUpgrade(req, socket, head);
   if (url.pathname.startsWith('/ws/tabs/')) return handleTerminalUpgrade(req, socket, head, url);
   rejectUpgrade(socket, 404, 'Not Found');
@@ -96,8 +116,9 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
 }
 
 await loadChats();
+keepAwake();
 server.listen(config.port, config.host, () => {
-  console.log(`term-hub on http://${config.host}:${config.port}`);
+  console.log(`term-hub on http://${config.host}:${config.port}${power.on ? '' : ' (turned off)'}`);
   console.log(`  agent: ${config.agent.type} — ${config.agent.command} ${config.agent.args.join(' ')} (in ${config.agent.cwd})`);
   if (config.allowedLogins.length) console.log(`  allowed Tailscale logins: ${config.allowedLogins.join(', ')}`);
 });

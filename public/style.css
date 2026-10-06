@@ -708,6 +708,59 @@ button.tool-head:hover {
   white-space: pre-wrap;
 }
 
+/* ----------------------------------------------------------- turn off */
+
+#turn-off:hover,
+#turn-off:hover svg {
+  color: var(--danger);
+}
+/* While off nothing on the page works, so it's covered (toasts stay above). */
+#off-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: var(--grain), var(--bg);
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+#off-screen p {
+  margin: 0;
+}
+#turn-on {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 10px 18px 10px 15px;
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--accent) 12%, var(--raised));
+  color: var(--text);
+  font: 500 14px/1 var(--sans);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+#turn-on:hover {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 20%, var(--raised));
+}
+#turn-on:disabled {
+  opacity: 0.6;
+}
+#turn-on svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
 /* ------------------------------------------------------------- loader */
 
 /* The live end of the rail: a pulsing node, then what's happening. */
@@ -1100,22 +1153,23 @@ button.model:hover {
   color: var(--text);
   font-weight: 500;
 }
-/* Segmented gauges: six cells. */
+/* Progress bars: a rounded track, filled to the percentage. */
 .stat-bar,
 .meter-bar {
-  height: 7px;
-  background: var(--line-soft);
-  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
-  mask-image: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
 }
 .stat-bar {
-  width: 40px;
+  width: 56px;
 }
 .stat-bar span,
 .meter-bar span {
   display: block;
   height: 100%;
   width: 0;
+  border-radius: inherit;
   background: var(--accent);
   transition: width 0.3s ease;
 }
@@ -1251,9 +1305,8 @@ button.model:hover {
   font-variant-numeric: tabular-nums;
 }
 .meter-bar {
-  height: 9px;
-  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
-  mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+  height: 6px;
+  border-radius: 3px;
 }
 .meter-foot {
   font: 10.5px/1.5 var(--mono);

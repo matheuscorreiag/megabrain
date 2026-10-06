@@ -30,6 +30,7 @@ const state = {
   agent: { models: [], efforts: [] }, // per-chat choices the agent offers
   newSettings: { model: null, effort: null, ...local.get('newSettings', {}) }, // for the next new chat
   listed: false, // the first list arrived (later unread changes are news)
+  off: false, // turned off from here: stop reconnecting
 };
 let loader = null;
 
@@ -84,6 +85,7 @@ let retryTimer = null;
 
 function connect() {
   clearTimeout(retryTimer);
+  if (state.off) return;
   if (ws && ws.readyState <= WebSocket.OPEN) return;
   const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/chat`);
   ws = socket;
@@ -100,6 +102,7 @@ function connect() {
     ws = null;
     setConn('offline');
     retryTimer = setTimeout(connect, Math.min(8000, 400 * 2 ** retries++));
+    checkPower(); // closed because it was turned off?
   };
 }
 
@@ -114,7 +117,8 @@ function wsSend(msg) {
 const sendVisibility = () => wsSend({ op: 'visibility', visible: !document.hidden });
 document.addEventListener('visibilitychange', () => {
   document.body.classList.toggle('away', document.hidden); // holds the notice's countdown
-  if (!document.hidden && ws?.readyState !== WebSocket.OPEN) {
+  if (!document.hidden && state.off) checkPower();
+  else if (!document.hidden && ws?.readyState !== WebSocket.OPEN) {
     retries = 0;
     connect();
   } else sendVisibility();
@@ -735,6 +739,61 @@ $('#shortcut-list').replaceChildren(
 );
 $('#open-shortcuts').addEventListener('click', () => (location.hash = 'shortcuts'));
 $('#back-to-chat').addEventListener('click', () => go(state.chatId));
+
+// ------------------------------------------------------------- on / off
+
+// Off (lib/power.js): every device gets the "Turned off" screen; only a
+// browser on this Mac gets the switches (the server checks again).
+let thisMac = false;
+let offPoll = null;
+
+function checkPower() {
+  return api('GET', '/api/config').then((c) => {
+    thisMac = c.thisMac;
+    $('#turn-off').hidden = !thisMac;
+    if (c.on === false) showOff();
+    else if (c.on && state.off) location.reload(); // turned back on (from another tab)
+  }, () => {}); // unreachable (asleep, restarting): the socket keeps retrying
+}
+
+function showOff() {
+  $('#turn-on').hidden = !thisMac;
+  $('#off-note').textContent = thisMac ? 'The Mac can sleep again.' : 'Turn it back on from the Mac.';
+  document.title = 'Turned off';
+  if (state.off) return;
+  state.off = true;
+  clearTimeout(retryTimer);
+  ws?.close();
+  hidePopovers();
+  $('#off-screen').hidden = false;
+  offPoll = setInterval(() => !document.hidden && checkPower(), 10_000);
+}
+
+$('#turn-off').addEventListener('click', async () => {
+  const running = state.chats.filter((c) => c.status === 'running').length;
+  const stops = running ? `\n\n${running === 1 ? 'A chat is' : `${running} chats are`} still working and will stop.` : '';
+  if (!confirm(`Turn off? Every device gets a "Turned off" screen and the Mac can sleep again, until you turn it back on from this Mac.${stops}`)) return;
+  try {
+    await api('POST', '/api/turn-off');
+  } catch (err) {
+    return fail(err);
+  }
+  showOff();
+});
+
+$('#turn-on').addEventListener('click', async () => {
+  $('#turn-on').disabled = true;
+  try {
+    await api('POST', '/api/turn-on');
+  } catch (err) {
+    $('#turn-on').disabled = false;
+    return fail(err);
+  }
+  clearInterval(offPoll);
+  location.reload();
+});
+
+checkPower();
 
 // ---------------------------------------------------------- turn status
 

@@ -60,7 +60,8 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | Path | Role |
 | --- | --- |
 | `server.js` | HTTP + WebSocket wiring, access checks, static files |
-| `lib/config.js` | `config.json` loading/defaults, shared helpers (auth, origin check, env cleaning) |
+| `lib/config.js` | `config.json` loading/defaults, shared helpers (auth, origin check, this-Mac check, env cleaning) |
+| `lib/power.js` | on / off: the keep-awake assertion (`caffeinate -i -w <pid>`) and the `off` marker |
 | `lib/chat.js` | chats: processes, queue, interrupt, persistence, broadcast, uploads/media, accent hues |
 | `lib/agents/claude.js` | **the only Claude-specific code**: CLI args, message encoding, interrupt, event parsing, labels |
 | `lib/agents/index.js` | adapter registry by `agent.type` |
@@ -71,7 +72,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `public/loader.js` | the "working" indicator (small, swappable contract) |
 | `public/terminal/*` | terminal page |
 | `bin/hub` | open the same tmux tabs over SSH |
-| `scripts/launchd.sh` | install / restart / uninstall the launchd agent |
+| `scripts/launchd.sh` | install / start / stop / restart / uninstall the launchd agent |
 
 ### Chat engine
 
@@ -138,6 +139,10 @@ to a generic card.
 - Sidebar items are rendered **in place, keyed by id** (rebuilding them breaks
   double-click rename and focus). Hold re-renders while an inline rename is
   open.
+- The sidebar's width is `--side-w` (base.css). Dragging its right edge
+  (`setupResize()` in ui.js, desktop only) overrides it on `<html>`, clamped to
+  200–520px, and saves it in localStorage `ui:sidebarWidth` for both pages.
+  Size sidebar content against `--side-w`, never a fixed 272px.
 - Shortcuts are one table per page (chat: `SHORTCUTS` in `app.js`, also drives
   the Shortcuts screen). Chat: ⌘1–9, ⌃⌘N, ⌘B, ⌘J, ⌘K, ⌘/. Terminal: ⌘1–9, ⌃⌘N, ⌘B,
   ⌘E — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E
@@ -152,6 +157,11 @@ to a generic card.
   Never `tailscale funnel` or `host: 0.0.0.0`.
 - `config.allowedLogins` checks the `Tailscale-User-Login` header that
   `tailscale serve` injects.
+- **Turn off / on** (`POST /api/turn-off`, `/api/turn-on`) only work from a
+  browser on the Mac itself, and the buttons only show there (`thisMac` in
+  `/api/config`): `fromThisMac()` compares the client address — `X-Forwarded-For`, which
+  `tailscale serve` overwrites with the client's tailnet IP, or the peer for
+  direct localhost requests — with this machine's own interface addresses.
 - Cross-site protection: `Origin`/`Sec-Fetch-Site` checks on API and WebSocket
   upgrades, plus a required `X-Hub: 1` header on every write.
 - Media and `/api/local-image` (images under `$HOME` only) are served with a
@@ -194,6 +204,18 @@ HUB_CONFIG=/path/to/test-config.json node server.js
   restart kills running agent processes: **first check that no chat is running**
   (`curl -s http://127.0.0.1:7680/api/chats` → every `status` is `idle`).
 - Logs: `~/Library/Logs/term-hub.log`.
+- **On / off** is a state of the running server, not of the process: a page
+  can't start a stopped server, so off keeps the process up (idle) and only
+  drops the keep-awake assertion, stops agents and closes every socket. While
+  off, the API (except `/api/config` and the switches), media and WebSockets
+  answer 503; static files still load, and the pages show the "Turned off"
+  screen (the terminal page sends you to it). The server holds the assertion
+  itself (`lib/power.js`), so the launchd plist runs plain `node` — re-run
+  `scripts/launchd.sh install` if an old plist still wraps it in `caffeinate`.
+- `scripts/launchd.sh stop` / `start` stop the process entirely (disable +
+  bootout, so neither KeepAlive nor the next login restarts it).
+  `HUB_LABEL=<other label>` makes the script manage another job with its own
+  plist and log — test launchd changes that way, with a config on another port.
 
 ## Gotchas already hit
 
@@ -228,8 +250,8 @@ HUB_CONFIG=/path/to/test-config.json node server.js
 ## Data and persistence
 
 - `~/.term-hub/chats/<id>/{meta.json,events.jsonl}`, `~/.term-hub/media/`,
-  `~/.term-hub/limits.json`. The agent's own transcripts (used by `--resume`)
-  live in `~/.claude/`.
+  `~/.term-hub/limits.json`, `~/.term-hub/off` (present while turned off). The
+  agent's own transcripts (used by `--resume`) live in `~/.claude/`.
 - Survives connection drops and restarts. Lost on a hard shutdown mid-turn:
   the block being streamed and the in-memory queue. Ideas not done yet:
   persist the queue, mark turns cut by a restart, checkpoint in-progress text.

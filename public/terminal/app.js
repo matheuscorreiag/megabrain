@@ -158,7 +158,8 @@ async function refreshTabs() {
   try {
     tabs = await api('GET', '/api/tabs');
     if (!views.get(activeId)) setConn('online');
-  } catch {
+  } catch (err) {
+    if (err.status === 503) return location.replace('/'); // turned off: the chat page says so
     setConn('offline');
     return;
   }
