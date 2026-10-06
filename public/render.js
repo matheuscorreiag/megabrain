@@ -4,24 +4,11 @@
 
 import { marked } from '/vendor/marked.mjs';
 import DOMPurify from '/vendor/purify.mjs';
+import { h } from '/ui.js';
 
 marked.use({ gfm: true, breaks: true });
 
 // ------------------------------------------------------------------ utils
-
-export function h(tag, props = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (v == null || v === false) continue;
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else if (k === 'dataset') Object.assign(el.dataset, v);
-    else if (k in el) el[k] = v;
-    else el.setAttribute(k, v);
-  }
-  el.append(...children.flat().filter((c) => c != null && c !== false));
-  return el;
-}
 
 // Absolute (or ~/) paths to image files mentioned in plain text.
 const IMAGE_PATH = /(?:^|[\s(`'"“])((?:\/|~\/)[^\s'"`<>()“”]+?\.(?:png|jpe?g|gif|webp|svg))(?=$|[\s)`'"”.,;:!?])/gim;

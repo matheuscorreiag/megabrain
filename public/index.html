@@ -10,6 +10,7 @@
     <title>New chat</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/base.css" />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body data-view="chat">
@@ -27,7 +28,7 @@
           <kbd class="hint" id="new-chat-hint"></kbd>
         </button>
       </div>
-      <nav id="chat-list"></nav>
+      <nav id="chat-list" class="side-list"></nav>
       <div class="side-foot">
         <button id="open-shortcuts" class="side-btn" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" /></svg>
@@ -37,7 +38,7 @@
         <a class="side-btn" href="/terminal/">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M13 15h4" /></svg>
           <span>Terminal</span>
-          <span class="hint">↗</span>
+          <span class="hint">→</span>
         </a>
       </div>
     </aside>
@@ -82,7 +83,7 @@
       </footer>
     </main>
 
-    <div id="usage-panel" hidden role="dialog" aria-label="Usage"></div>
+    <div id="usage-panel" hidden data-popover role="dialog" aria-label="Usage"></div>
     <div id="lightbox" hidden>
       <img alt="" />
       <div class="lightbox-bar">

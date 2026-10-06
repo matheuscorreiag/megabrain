@@ -3,33 +3,12 @@
 // the "working" indicator in loader.js. Nothing here depends on which agent
 // runs behind the server.
 
-import { Thread, h } from '/render.js';
+import { Thread } from '/render.js';
 import { createLoader } from '/loader.js';
+import { $, h, touch, narrow, isMac, MOD, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, initial, MORE_ICON, ago } from '/ui.js';
 
-const $ = (sel) => document.querySelector(sel);
-const touch = matchMedia('(pointer: coarse)').matches;
-const narrow = () => matchMedia('(max-width: 800px)').matches;
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-const MOD = isMac ? '⌘' : 'Ctrl+';
 const randomId = () => Math.random().toString(36).slice(2, 10);
-
-// Per-device conveniences only (last chat, unsent drafts, sidebar state).
-const local = {
-  get(key, fallback) {
-    try {
-      const raw = localStorage.getItem(`chat:${key}`);
-      return raw == null ? fallback : JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  },
-  set(key, value) {
-    try {
-      if (value == null || value === '') localStorage.removeItem(`chat:${key}`);
-      else localStorage.setItem(`chat:${key}`, JSON.stringify(value));
-    } catch {}
-  },
-};
+const local = storage('chat'); // last chat, unsent drafts
 
 const thread = new Thread($('#thread'));
 const input = $('#input');
@@ -53,40 +32,6 @@ let loader = null;
 
 // ------------------------------------------------------------------ utils
 
-async function api(method, url, body, contentType) {
-  const init = { method, headers: { 'x-hub': '1' } };
-  if (body instanceof Blob) {
-    init.body = body;
-    init.headers['content-type'] = contentType || body.type || 'application/octet-stream';
-  } else if (body !== undefined) {
-    init.body = JSON.stringify(body);
-    init.headers['content-type'] = 'application/json';
-  }
-  const res = await fetch(url, init);
-  const data = (res.headers.get('content-type') || '').includes('json') ? await res.json() : await res.text();
-  if (!res.ok) throw new Error(data?.error || res.statusText);
-  return data;
-}
-
-let toastTimer;
-function toast(message, error = false) {
-  const el = $('#toast');
-  el.textContent = message;
-  el.className = error ? 'error' : '';
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.hidden = true), error ? 5000 : 2500);
-}
-const fail = (err) => toast(err?.message || String(err), true);
-
-function ago(ts) {
-  const s = (Date.now() - ts) / 1000;
-  if (s < 60) return 'now';
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
 const hhmm = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
 function resetsIn(ts) {
@@ -107,105 +52,24 @@ function tokens(n) {
 
 const level = (pct) => (pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '');
 
-// Keep the layout inside the visible viewport when the phone keyboard opens.
-function syncHeight() {
-  const height = window.visualViewport?.height ?? window.innerHeight;
-  document.documentElement.style.setProperty('--app-h', `${height}px`);
-  window.scrollTo(0, 0);
-}
-window.visualViewport?.addEventListener('resize', syncHeight);
-window.addEventListener('resize', syncHeight);
-syncHeight();
-
 // ---------------------------------------------------------------- accents
 
-// Every chat has its own hue (picked by the server); lightness and chroma are
-// fixed so each one reads well on the dark background.
-const DEFAULT_HUE = 255;
-const accentFor = (hue) => `oklch(0.78 0.14 ${Number.isFinite(hue) ? hue : DEFAULT_HUE})`;
-
+// Every chat has its own hue (picked by the server).
 function applyAccent() {
   const hue = state.chatId ? current()?.hue : state.nextHue;
   document.documentElement.style.setProperty('--accent', accentFor(hue));
 }
 
-// --------------------------------------------------------------- popovers
-
-let menuAnchor = null;
-function showMenu(anchor, items) {
-  const menu = $('#menu');
-  if (!menu.hidden && menuAnchor === anchor) return hidePopovers();
-  hidePopovers();
-  menuAnchor = anchor;
-  menu.replaceChildren(
-    ...items.map((item) =>
-      h('button', {
-        type: 'button',
-        class: item.danger ? 'danger' : '',
-        textContent: item.label,
-        onclick: () => {
-          hidePopovers();
-          item.run();
-        },
-      }),
-    ),
-  );
-  menu.hidden = false;
-  place(menu, anchor);
-}
-
-function place(popover, anchor) {
-  const r = anchor.getBoundingClientRect();
-  const below = r.bottom + popover.offsetHeight + 8 < innerHeight;
-  popover.style.top = `${below ? r.bottom + 4 : Math.max(8, r.top - popover.offsetHeight - 4)}px`;
-  popover.style.left = `${Math.max(8, Math.min(r.right - popover.offsetWidth, innerWidth - popover.offsetWidth - 8))}px`;
-}
-
-function hidePopovers() {
-  $('#menu').hidden = true;
-  $('#usage-panel').hidden = true;
-  menuAnchor = null;
-}
-document.addEventListener(
-  'pointerdown',
-  (e) => {
-    if (!e.target.closest('#menu, #usage-panel, .stat') && !menuAnchor?.contains(e.target)) hidePopovers();
-  },
-  true,
-);
-
-// Swaps `el`'s text for an input; Enter/blur saves, Esc cancels.
-function editInline(el, value, save) {
-  if (el.querySelector('.rename-input')) return;
-  state.editing = true;
-  const field = h('input', { class: 'rename-input', value, maxLength: 120, 'aria-label': 'New name' });
-  el.replaceChildren(field);
-  field.focus();
-  field.select();
-  let done = false;
-  const finish = async (commit) => {
-    if (done) return;
-    done = true;
-    state.editing = false;
-    const title = field.value.trim();
-    el.textContent = commit && title ? title : value;
-    if (commit && title && title !== value) await save(title).catch(fail);
-    renderList();
-    renderHeader();
-  };
-  field.addEventListener('keydown', (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      finish(true);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      finish(false);
-    }
+// Inline rename (ui.js) with the list held still while the field is open.
+function renameInline(el, chat) {
+  editInline(el, chat?.title || '', (t) => (t ? renameChat(chat.id, t) : Promise.resolve()), {
+    onStart: () => (state.editing = true),
+    onEnd: () => {
+      state.editing = false;
+      renderList();
+      renderHeader();
+    },
   });
-  field.addEventListener('blur', () => finish(true));
-  field.addEventListener('click', (e) => e.stopPropagation());
-  field.addEventListener('dblclick', (e) => e.stopPropagation());
 }
 
 // ------------------------------------------------------------- connection
@@ -238,15 +102,6 @@ function wsSend(msg) {
   if (ws?.readyState !== WebSocket.OPEN) return false;
   ws.send(JSON.stringify(msg));
   return true;
-}
-
-const CONN_LABELS = { connecting: 'Connecting…', online: 'Connected', offline: 'Reconnecting…' };
-function setConn(state) {
-  const el = $('#conn');
-  el.dataset.state = state;
-  el.title = CONN_LABELS[state];
-  el.querySelector('.sr-only').textContent = CONN_LABELS[state];
-  $('#open-sidebar').dataset.conn = state;
 }
 
 // Phones drop sockets while asleep; reconnect as soon as the page is back.
@@ -412,18 +267,12 @@ async function deleteChat(chat) {
 // break double-click-to-rename and lose focus while the list refreshes.
 const listItems = new Map(); // chat id -> { el, avatar, name, sub, kbd }
 
-const MORE_ICON =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
-
 function listItem(c) {
   const avatar = h('span', { class: 'avatar', 'aria-hidden': 'true' });
   const name = h('span', { class: 'name' });
   const sub = h('span', { class: 'sub' });
   const kbd = h('kbd', { class: 'kbd' });
-  const rename = () => {
-    const chat = state.chats.find((x) => x.id === c.id);
-    editInline(name, chat?.title || '', (t) => renameChat(c.id, t));
-  };
+  const rename = () => renameInline(name, state.chats.find((x) => x.id === c.id) || c);
   const more = h('button', {
     type: 'button',
     class: 'more',
@@ -440,7 +289,7 @@ function listItem(c) {
   const el = h(
     'div',
     {
-      class: 'chat-item',
+      class: 'side-item',
       role: 'button',
       tabIndex: 0,
       onclick: () => go(c.id),
@@ -456,9 +305,6 @@ function listItem(c) {
   );
   return { el, avatar, name, sub, kbd };
 }
-
-// First letter (or emoji) of the title, for the colored avatar.
-const initial = (title) => ([...(title || '').trim()][0] || '·').toUpperCase();
 
 function renderList() {
   if (state.editing) return; // would clobber the rename field
@@ -487,8 +333,8 @@ function renderList() {
     item.kbd.hidden = i >= 9;
     nav.append(item.el); // moves existing nodes into order
   });
-  let empty = nav.querySelector('.chat-list-empty');
-  if (!state.chats.length && !empty) nav.append((empty = h('div', { class: 'chat-list-empty', textContent: 'No chats yet.' })));
+  let empty = nav.querySelector('.side-list-empty');
+  if (!state.chats.length && !empty) nav.append((empty = h('div', { class: 'side-list-empty', textContent: 'No chats yet.' })));
   if (state.chats.length) empty?.remove();
 }
 
@@ -503,25 +349,19 @@ function renderHeader() {
 
 $('#new-chat').addEventListener('click', newChat);
 
-// Sidebar: collapses on desktop, slides in as a drawer on phones. Its own
-// button hides it; a floating one brings it back.
-function setDrawer(open) {
-  document.body.classList.toggle('sidebar-open', open);
-}
+// Sidebar (ui.js): its own button hides it, a floating one brings it back.
+const sidebar = setupSidebar('chatSidebarCollapsed');
+const setDrawer = sidebar.setDrawer;
 function toggleSidebar() {
-  if (narrow()) return setDrawer(!document.body.classList.contains('sidebar-open'));
   const stick = atBottom; // the reflow would leave the thread mid-way
-  const collapsed = document.body.classList.toggle('sidebar-collapsed');
-  local.set('sidebarCollapsed', collapsed || null);
-  if (stick) {
+  sidebar.toggle();
+  if (stick && !narrow()) {
     requestAnimationFrame(scrollToBottom);
-    setTimeout(scrollToBottom, 300); // after the slide (see style.css)
+    setTimeout(scrollToBottom, 300); // after the slide (see base.css)
   }
 }
 $('#close-sidebar').addEventListener('click', toggleSidebar);
 $('#open-sidebar').addEventListener('click', toggleSidebar);
-$('#scrim').addEventListener('click', () => setDrawer(false));
-if (local.get('sidebarCollapsed', false)) document.body.classList.add('sidebar-collapsed');
 
 setInterval(() => {
   renderList();
@@ -547,7 +387,7 @@ function stat({ label, pct, title }) {
   bar.style.width = `${Math.min(100, pct)}%`;
   return h(
     'button',
-    { type: 'button', class: `stat ${level(pct)}`, title, onclick: (e) => openUsage(e.currentTarget) },
+    { type: 'button', class: `stat ${level(pct)}`, title, 'data-popover-anchor': '', onclick: (e) => openUsage(e.currentTarget) },
     h('span', { textContent: label }),
     h('span', { class: 'stat-bar' }, bar),
     h('b', { textContent: `${pct}%` }),
@@ -652,7 +492,6 @@ const SHORTCUTS = [
 document.addEventListener(
   'keydown',
   (e) => {
-    if (e.key === (isMac ? 'Meta' : 'Control')) document.body.classList.add('show-keys');
     const s = SHORTCUTS.find((x) => x.match?.(e));
     if (!s || e.isComposing) return;
     if (state.view === 'shortcuts') {
@@ -668,9 +507,6 @@ document.addEventListener(
   },
   true,
 );
-const hideKeys = () => document.body.classList.remove('show-keys');
-document.addEventListener('keyup', (e) => e.key === (isMac ? 'Meta' : 'Control') && hideKeys());
-window.addEventListener('blur', hideKeys);
 
 $('#new-chat-hint').textContent = SHORTCUTS.find((x) => x.id === 'new').keys[0];
 $('#shortcuts-hint').textContent = `${MOD}/`;

@@ -67,8 +67,11 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
 | --- | --- |
 | `public/loader.js` | the "Thinking… / Using Bash…" indicator (contract at the top) |
 | `public/render.js` | how messages, tools (`TOOLS`) and images are drawn |
-| `public/style.css` | color tokens, layout, loader animations |
-| `public/app.js` | state, WebSocket, sidebar, accents, usage, shortcuts, composer |
+| `public/base.css` | shared by both pages: color tokens, sidebar, item rows, menus |
+| `public/ui.js` | shared by both pages: sidebar, menus, inline rename, status dot, accents |
+| `public/style.css` | chat page layout, thread, composer, loader animations |
+| `public/app.js` | chat state, WebSocket, usage, shortcuts, composer |
+| `public/terminal/*` | terminal page (tabs, Files panel, phone key strip) |
 | `lib/chat.js` | processes, queue, persistence, item format, accent picking |
 | `lib/agents/*.js` | one adapter per agent (contract at the top of `claude.js`) |
 
@@ -126,5 +129,19 @@ On the phone: Tailscale app connected → open the URL → "Add to Home Screen".
 
 ## Terminal (at `/terminal/`)
 
-The earlier version is still there: tmux-backed terminal tabs and a file
-browser. `bin/hub` opens the same tabs over SSH (`hub`, `hub 2`, `hub new`).
+Same layout as the chat page: tmux-backed terminals listed in the sidebar
+(each with its own accent), a **Files** panel on the right (browse, edit,
+upload, download, rename, move to Trash, type a path into the terminal) and
+**Back to chats** to return to the main view. Terminals keep running when the
+browser closes and can be opened from several devices at once; `bin/hub`
+opens the same ones over SSH (`hub`, `hub 2`, `hub new`).
+
+| Keys | Action |
+| --- | --- |
+| ⌘1 … ⌘9 | switch terminal |
+| ⌃⌘N | new terminal (in the folder open in Files) |
+| ⌘B | show / hide the sidebar |
+| ⌘E | show / hide Files |
+
+Off macOS they use Ctrl+Shift (Ctrl+Alt+N for a new terminal), since plain
+Ctrl+B / Ctrl+E belong to the shell.

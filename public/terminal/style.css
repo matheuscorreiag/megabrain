@@ -1,182 +1,41 @@
-:root {
-  --bg: #161616;
-  --panel: #1d1d1d;
-  --raised: #262626;
-  --line: #2f2f2f;
-  --text: #e6e6e6;
-  --muted: #9a9a9a;
-  --accent: #6ea8fe;
-  --accent-text: #0d1626;
-  --danger: #e5604f;
-  --term-bg: #121212;
-  --app-h: 100dvh;
-  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  color-scheme: dark;
-}
+/* Terminal page. Shared tokens, sidebar, menus: /base.css. */
 
-* {
-  box-sizing: border-box;
-}
-
-/* Author `display` rules would otherwise beat the hidden attribute. */
-[hidden] {
-  display: none !important;
-}
-
-html,
-body {
-  margin: 0;
-  height: var(--app-h);
-  overflow: hidden;
-  background: var(--bg);
-  color: var(--text);
-  font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
-}
-
-button {
-  font: inherit;
-  color: inherit;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 10px;
-  cursor: pointer;
-  white-space: nowrap;
-  touch-action: manipulation;
-}
-button:hover {
-  border-color: #444;
-}
-button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-  font-weight: 600;
-}
-textarea {
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 6px 8px;
-}
-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
-  padding: 6px 10px;
-  color: var(--muted);
-}
-.icon-btn:hover {
-  color: var(--text);
-}
-
-/* ------------------------------------------------------------ top bar */
-
-#topbar {
-  display: flex;
-  align-items: stretch;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  min-height: 40px;
-}
-#tabs {
-  display: flex;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-#tabs::-webkit-scrollbar {
-  display: none;
-}
-.tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 240px;
-  padding: 0 6px 0 12px;
-  border-right: 1px solid var(--line);
-  color: var(--muted);
-  cursor: pointer;
-  user-select: none;
-  flex-shrink: 0;
-}
-.tab.active {
-  background: var(--term-bg);
-  color: var(--text);
-  box-shadow: inset 0 2px 0 var(--accent);
-}
-.tab .title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tab .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: transparent;
-  flex-shrink: 0;
-}
-.tab .dot.connecting {
-  background: #c9a227;
-}
-.tab .dot.offline {
-  background: var(--danger);
-}
-.tab .close {
-  background: none;
-  border: none;
-  padding: 2px 6px;
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 1;
-}
-.tab .close:hover {
-  color: var(--danger);
-}
-
-/* ------------------------------------------------------------- layout */
-
-#layout {
+#main {
   position: relative;
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: minmax(0, 1fr) 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
   min-height: 0;
+  transition: grid-template-columns 0.26s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
-body.files-hidden #layout {
-  grid-template-columns: 0 1fr;
+body.files-open #main {
+  grid-template-columns: minmax(0, 1fr) 320px;
 }
-body.files-hidden #files {
-  visibility: hidden;
-}
+
+/* ------------------------------------------------------------- terminal */
 
 #terms {
   position: relative;
-  background: var(--term-bg);
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
 }
 .term {
   position: absolute;
-  inset: 6px 4px 4px 8px;
+  inset: calc(12px + env(safe-area-inset-top)) 8px 8px 14px;
   display: none;
+}
+/* Leave room for the floating sidebar toggle. */
+body.sidebar-collapsed .term {
+  top: calc(56px + env(safe-area-inset-top));
 }
 .term.active {
   display: block;
+}
+.term .xterm-viewport {
+  scrollbar-width: thin;
 }
 
 #empty {
@@ -185,25 +44,55 @@ body.files-hidden #files {
   display: grid;
   place-content: center;
   justify-items: center;
+  gap: 4px;
   color: var(--muted);
 }
+#empty .side-btn {
+  width: auto;
+}
 
-/* -------------------------------------------------------------- files */
+/* ---------------------------------------------------------------- files */
 
+/* Slides in from the right like the sidebar does from the left: the panel's
+   content keeps its width and is clipped while the column animates. */
 #files {
+  grid-column: 2;
+  grid-row: 1 / -1;
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--panel);
-  border-right: 1px solid var(--line);
   min-height: 0;
   overflow: hidden;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0s linear 0.26s;
+}
+#files > * {
+  min-width: 319px;
+}
+body.files-open #files {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease, visibility 0s linear 0s;
 }
 .files-head {
-  padding: 8px;
-  border-bottom: 1px solid var(--line);
   display: grid;
   gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.files-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  font-size: 14px;
+}
+.icon-btn.small {
+  font-size: 20px;
+  padding: 4px 10px;
 }
 #crumbs {
   font-family: var(--mono);
@@ -215,6 +104,7 @@ body.files-hidden #files {
 }
 #crumbs a {
   color: var(--text);
+  text-decoration: none;
   cursor: pointer;
 }
 #crumbs a:hover {
@@ -222,48 +112,77 @@ body.files-hidden #files {
 }
 .files-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
   align-items: center;
+  gap: 2px;
 }
 .files-actions button {
-  padding: 3px 8px;
-  font-size: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+}
+.files-actions button:hover {
+  color: var(--text);
+  background: var(--raised);
+}
+.files-actions svg,
+#file-list svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .toggle {
-  font-size: 12px;
-  color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 #file-list {
+  flex: 1;
   list-style: none;
   margin: 0;
-  padding: 4px 0;
+  padding: 6px 8px;
   overflow-y: auto;
-  flex: 1;
 }
 #file-list li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 6px 5px 12px;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 4px 0 8px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
 }
 #file-list li:hover {
   background: var(--raised);
 }
+#file-list .icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+#file-list .dir .icon {
+  color: var(--accent);
+}
 #file-list .name {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-#file-list .dir .name {
-  font-weight: 500;
 }
 #file-list .hidden-file .name {
   color: var(--muted);
@@ -274,11 +193,28 @@ body.files-hidden #files {
   font-variant-numeric: tabular-nums;
 }
 #file-list .more {
-  background: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: none;
+  border-radius: 7px;
+  background: none;
   color: var(--muted);
-  padding: 0 6px;
-  font-size: 16px;
+  opacity: 0;
+}
+#file-list .more svg {
+  fill: currentColor;
+  stroke: none;
+}
+#file-list li:hover .more,
+#file-list .more:focus-visible {
+  opacity: 1;
+}
+#file-list .more:hover {
+  color: var(--text);
+  background: color-mix(in oklab, var(--text) 8%, transparent);
 }
 #file-list .msg {
   color: var(--muted);
@@ -287,15 +223,22 @@ body.files-hidden #files {
 #file-list .msg:hover {
   background: none;
 }
+@media (pointer: coarse) {
+  #file-list li {
+    min-height: 44px;
+  }
+  #file-list .more {
+    opacity: 1;
+  }
+}
 
 #drop-hint {
   position: absolute;
   inset: 0;
   display: none;
   place-content: center;
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
   border: 2px dashed var(--accent);
-  color: var(--text);
   font-weight: 600;
   pointer-events: none;
 }
@@ -303,51 +246,38 @@ body.files-hidden #files {
   display: grid;
 }
 
-/* ------------------------------------------------- touch key strip */
+/* ------------------------------------------- touch key strip (phones) */
 
 #keys {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
-  gap: 4px;
+  gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
-  background: var(--panel);
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: var(--panel);
 }
 #keys button {
-  font-family: var(--mono);
-  font-size: 13px;
-  padding: 7px 11px;
   flex-shrink: 0;
+  min-width: 40px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  font: 13px var(--mono);
 }
-/* Mouse users have real keys and a wheel; the strip is for touch screens. */
+#keys button:active {
+  border-color: var(--accent);
+}
 @media (pointer: fine) {
   #keys {
     display: none;
   }
 }
 
-/* ------------------------------------------------------------ dialogs */
-
-dialog {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-}
-dialog::backdrop {
-  background: rgb(0 0 0 / 0.55);
-}
-.dialog-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  align-items: center;
-}
-.spacer {
-  flex: 1;
-}
+/* --------------------------------------------------------------- editor */
 
 #editor {
   width: min(960px, calc(100vw - 24px));
@@ -356,17 +286,25 @@ dialog::backdrop {
   display: none;
   flex-direction: column;
   gap: 10px;
+  padding: 16px;
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
 }
 #editor[open] {
   display: flex;
 }
+#editor::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
 .editor-head {
   display: flex;
-  gap: 12px;
   align-items: baseline;
-  font-family: var(--mono);
-  font-size: 13px;
+  gap: 12px;
   overflow: hidden;
+  font: 13px var(--mono);
 }
 #editor-name {
   overflow: hidden;
@@ -374,81 +312,71 @@ dialog::backdrop {
   white-space: nowrap;
 }
 #editor-status {
+  margin-left: auto;
   color: var(--muted);
   font-size: 12px;
-  margin-left: auto;
   white-space: nowrap;
 }
 #editor-text {
   flex: 1;
   resize: none;
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.5;
+  padding: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  font: 13px/1.5 var(--mono);
   tab-size: 2;
   white-space: pre;
 }
-
-#menu {
-  position: fixed;
-  z-index: 20;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 4px;
-  min-width: 190px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
-  display: grid;
+#editor-text:focus {
+  border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
 }
-#menu button {
-  background: none;
-  border: none;
-  text-align: left;
-  padding: 8px 10px;
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-#menu button:hover {
-  background: var(--panel);
+.dialog-actions .side-btn {
+  width: auto;
 }
-#menu button.danger {
-  color: var(--danger);
+.spacer {
+  flex: 1;
 }
 
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(70px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 14px;
-  z-index: 30;
-  max-width: calc(100vw - 32px);
-}
-#toast.error {
-  border-color: var(--danger);
-}
+/* --------------------------------------------------------------- phones */
 
-/* -------------------------------------------------------------- mobile */
-
-@media (max-width: 760px) {
-  #layout,
-  body.files-hidden #layout {
-    grid-template-columns: 1fr;
+@media (max-width: 800px) {
+  body.files-open #main,
+  #main {
+    grid-template-columns: minmax(0, 1fr) 0;
   }
+  /* Files cover the terminal instead of sitting next to it. */
   #files {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 10;
-    border-right: none;
+    z-index: 18;
+    border-left: none;
+    transform: translateX(100%);
+    transition: transform 0.26s cubic-bezier(0.3, 0.7, 0.2, 1), visibility 0s linear 0.26s;
   }
-  #file-list li {
-    padding: 9px 6px 9px 14px;
+  #files > * {
+    min-width: 0;
   }
-  .tab {
-    max-width: 160px;
+  body.files-open #files {
+    transform: none;
+    transition: transform 0.26s cubic-bezier(0.3, 0.7, 0.2, 1);
   }
-  .term {
-    inset: 4px 2px 2px 4px;
+  .term,
+  body.sidebar-collapsed .term {
+    inset: calc(56px + env(safe-area-inset-top)) 4px 4px 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #main,
+  #files {
+    transition: none !important;
   }
 }

@@ -1,78 +1,41 @@
+// Terminal page: tmux-backed terminal tabs (lib/terminal.js) in the same
+// layout as the chat page — sidebar list with per-tab accents, ⌘1–9 / ⌃⌘N /
+// ⌘B — plus a Files panel on the right. Shared pieces: /ui.js, /base.css.
+
 import { Terminal } from '/vendor/xterm.mjs';
 import { FitAddon } from '/vendor/addon-fit.mjs';
 import { WebLinksAddon } from '/vendor/addon-web-links.mjs';
+import { $, h, touch, narrow, isMac, api, storage, toast, fail, showMenu, editInline, setupSidebar, setConn, accentFor, initial, MORE_ICON } from '/ui.js';
 
-const $ = (sel) => document.querySelector(sel);
-const touch = matchMedia('(pointer: coarse)').matches;
-const narrow = () => matchMedia('(max-width: 760px)').matches;
-
-// Per-device conveniences only (active tab, last folder); tabs live in tmux.
-const local = {
-  get(key, fallback) {
-    try {
-      const raw = localStorage.getItem(`hub:${key}`);
-      return raw == null ? fallback : JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(`hub:${key}`, JSON.stringify(value));
-    } catch {}
-  },
-};
-
+const local = storage('terminal'); // active tab, last folder, panels
 let config = { root: '/', workdir: '/', home: '/', hostname: '' };
 let tabs = [];
 let activeId = local.get('active', null);
+let editing = false; // a name is being renamed inline: hold list re-renders
 const views = new Map(); // tab id -> { el, term, fit, ws, status, retries, timer, gone }
 
-// ------------------------------------------------------------------ utils
+// In a terminal, Ctrl+B/E/1… belong to the shell; off macOS this page uses
+// Ctrl+Shift instead (macOS keeps ⌘, which terminals never see).
+const TMOD = isMac ? '⌘' : 'Ctrl+Shift+';
+const tmod = (e) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey) && !e.altKey;
 
-async function api(method, url, body) {
-  const init = { method, headers: { 'x-hub': '1' } };
-  if (typeof body === 'string' || body instanceof Blob) init.body = body;
-  else if (body !== undefined) {
-    init.body = JSON.stringify(body);
-    init.headers['content-type'] = 'application/json';
-  }
-  const res = await fetch(url, init);
-  const isJson = (res.headers.get('content-type') || '').includes('json');
-  const data = isJson ? await res.json() : await res.text();
-  if (!res.ok) {
-    const err = new Error(data?.error || res.statusText);
-    err.status = res.status;
-    throw err;
-  }
-  return data;
-}
-
-let toastTimer;
-function toast(message, error = false) {
-  const el = $('#toast');
-  el.textContent = message;
-  el.className = error ? 'error' : '';
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.hidden = true), error ? 5000 : 2500);
-}
-const fail = (err) => toast(err?.message || String(err), true);
-
-function h(tag, props = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'class') el.className = v;
-    else el[k] = v;
-  }
-  el.append(...children.filter((c) => c != null));
-  return el;
-}
-
+const tildify = (p = '') => (p === config.home || p.startsWith(`${config.home}/`) ? `~${p.slice(config.home.length)}` : p);
 const joinPath = (dir, name) => `${dir.replace(/\/$/, '')}/${name}`;
-const tildify = (p) => (p === config.home || p.startsWith(`${config.home}/`) ? `~${p.slice(config.home.length)}` : p);
 const shellQuote = (s) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, "'\\''")}'`);
+
+// Terminals have no stored color: the hue comes from the id, so a tab looks
+// the same on every device.
+const hueOf = (id) => Math.round((parseInt(id.slice(0, 6), 16) * 137.508) % 360);
+
+// xterm.js only understands sRGB colors; let a canvas convert oklch().
+const swatch = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+function toHex(color) {
+  swatch.clearRect(0, 0, 1, 1);
+  swatch.fillStyle = color;
+  swatch.fillRect(0, 0, 1, 1);
+  const [r, g, b] = swatch.getImageData(0, 0, 1, 1).data;
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -96,131 +59,122 @@ function askName(message, value = '') {
   return name;
 }
 
-// Keep the layout inside the visible viewport when the phone keyboard opens.
-function syncHeight() {
-  const height = window.visualViewport?.height ?? window.innerHeight;
-  document.documentElement.style.setProperty('--app-h', `${height}px`);
-  window.scrollTo(0, 0);
-}
-window.visualViewport?.addEventListener('resize', syncHeight);
-window.visualViewport?.addEventListener('scroll', syncHeight);
-window.addEventListener('resize', syncHeight);
-syncHeight();
+const ICONS = {
+  folder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  file: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"/></svg>',
+};
 
-// ------------------------------------------------------------------- menu
+// ---------------------------------------------------------------- sidebar
 
-let menuAnchor = null;
+const sidebar = setupSidebar('terminalSidebarCollapsed');
+$('#close-sidebar').addEventListener('click', sidebar.toggle);
+$('#open-sidebar').addEventListener('click', sidebar.toggle);
 
-// Clicking the same anchor again closes the menu instead of reopening it.
-function toggleMenu(anchor, items) {
-  if (!$('#menu').hidden && menuAnchor === anchor) return hideMenu();
-  showMenu(anchor, items);
-}
+const listItems = new Map(); // tab id -> { el, avatar, name, sub, kbd }
 
-function showMenu(anchor, items) {
-  const menu = $('#menu');
-  menuAnchor = anchor;
-  menu.replaceChildren(
-    ...items.filter(Boolean).map((item) =>
-      h('button', {
-        textContent: item.label,
-        class: item.danger ? 'danger' : '',
-        onclick: () => {
-          hideMenu();
-          item.run();
+function listItem(tab) {
+  const avatar = h('span', { class: 'avatar', 'aria-hidden': 'true' });
+  const name = h('span', { class: 'name' });
+  const sub = h('span', { class: 'sub' });
+  const kbd = h('kbd', { class: 'kbd' });
+  const current = () => tabs.find((t) => t.id === tab.id) || tab;
+  const rename = () =>
+    // Clearing the name goes back to the automatic title.
+    editInline(name, current().title, (t) => setTabTitle(current(), t), {
+      onStart: () => (editing = true),
+      onEnd: () => {
+        editing = false;
+        renderList();
+      },
+    });
+  const more = h('button', {
+    type: 'button',
+    class: 'more',
+    innerHTML: MORE_ICON,
+    'aria-label': 'Terminal options',
+    onclick: (e) => {
+      e.stopPropagation();
+      const t = current();
+      const dir = t.currentPath || t.cwd;
+      showMenu(more, [
+        { label: 'Rename', run: rename },
+        t.renamed && { label: 'Back to automatic title', run: () => setTabTitle(t, '') },
+        {
+          label: 'Show folder in Files',
+          run: () => {
+            openDir(dir);
+            setFiles(true);
+          },
         },
-      }),
-    ),
+        { label: 'New terminal in this folder', run: () => createTab(dir) },
+        { label: 'Close terminal', danger: true, run: () => closeTab(t) },
+      ]);
+    },
+  });
+  const el = h(
+    'div',
+    {
+      class: 'side-item',
+      role: 'button',
+      tabIndex: 0,
+      onclick: () => activate(tab.id),
+      ondblclick: (e) => {
+        e.preventDefault();
+        rename();
+      },
+      onkeydown: (e) => e.key === 'Enter' && e.target === e.currentTarget && activate(tab.id),
+    },
+    avatar,
+    h('span', { class: 'text' }, name, sub),
+    h('span', { class: 'side' }, kbd, more),
   );
-  menu.hidden = false;
-  const rect = anchor.getBoundingClientRect();
-  const { width, height } = menu.getBoundingClientRect();
-  menu.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
-  menu.style.top = `${rect.bottom + height + 8 > innerHeight ? Math.max(8, rect.top - height - 4) : rect.bottom + 4}px`;
+  return { el, avatar, name, sub, kbd };
 }
-function hideMenu() {
-  $('#menu').hidden = true;
-  menuAnchor = null;
+
+function renderList() {
+  if (editing) return;
+  const nav = $('#tab-list');
+  const ids = new Set(tabs.map((t) => t.id));
+  for (const [id, item] of listItems) {
+    if (!ids.has(id)) {
+      item.el.remove();
+      listItems.delete(id);
+    }
+  }
+  tabs.forEach((tab, i) => {
+    let item = listItems.get(tab.id);
+    if (!item) listItems.set(tab.id, (item = listItem(tab)));
+    const path = tildify(tab.currentPath || tab.cwd);
+    item.el.classList.toggle('active', tab.id === activeId);
+    item.el.style.setProperty('--item-accent', accentFor(hueOf(tab.id)));
+    item.el.title = `${tab.title}\n${path}${i < 9 ? `  (${TMOD}${i + 1})` : ''}`;
+    item.avatar.textContent = tab.renamed ? initial(tab.title) : '$';
+    item.name.textContent = tab.title;
+    item.sub.textContent = tab.clients > 1 ? `${path} · ${tab.clients} devices` : path;
+    item.kbd.textContent = i < 9 ? `${TMOD}${i + 1}` : '';
+    item.kbd.hidden = i >= 9;
+    nav.append(item.el);
+  });
+  $('#empty').hidden = tabs.length > 0;
+  const active = tabs.find((t) => t.id === activeId);
+  document.title = active ? active.title : 'Terminal';
+  document.documentElement.style.setProperty('--accent', accentFor(active ? hueOf(active.id) : undefined));
 }
-// Capture phase, so clicks on the terminal (which xterm handles) count too.
-document.addEventListener(
-  'pointerdown',
-  (e) => {
-    if (!e.target.closest('#menu') && !menuAnchor?.contains(e.target)) hideMenu();
-  },
-  true,
-);
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') hideMenu();
-});
-window.addEventListener('blur', hideMenu);
 
 // ------------------------------------------------------------------- tabs
 
 async function refreshTabs() {
   try {
     tabs = await api('GET', '/api/tabs');
+    if (!views.get(activeId)) setConn('online');
   } catch {
-    return; // server unreachable; views show their own status
+    setConn('offline');
+    return;
   }
   for (const id of views.keys()) if (!tabs.some((t) => t.id === id)) destroyView(id);
-  if (!tabs.some((t) => t.id === activeId)) activeId = tabs.at(-1)?.id ?? null;
-  renderTabs();
+  if (!tabs.some((t) => t.id === activeId)) activeId = tabs[0]?.id ?? null;
+  renderList();
   if (activeId && !views.get(activeId)?.el.classList.contains('active')) activate(activeId, { focus: false });
-}
-
-let renderedKey = '';
-
-function renderTabs() {
-  // Polled every few seconds: skip rebuilding when nothing visible changed.
-  const key = JSON.stringify([activeId, tabs.map((t) => [t.id, t.title, t.currentPath])]);
-  if (key === renderedKey) return;
-  renderedKey = key;
-  const nav = $('#tabs');
-  const scroll = nav.scrollLeft;
-  nav.replaceChildren(
-    ...tabs.map((tab) => {
-      const el = h(
-        'div',
-        {
-          class: `tab${tab.id === activeId ? ' active' : ''}`,
-          role: 'tab',
-          title: `${tab.title}\n${tildify(tab.currentPath || tab.cwd)}`,
-          onclick: (e) => {
-            if (e.target.closest('.close')) return closeTab(tab);
-            if (tab.id === activeId) return tabMenu(tab, el);
-            activate(tab.id);
-          },
-          ondblclick: () => renameTab(tab),
-        },
-        h('span', { class: 'title', textContent: tab.title }),
-        h('span', { class: `dot ${views.get(tab.id)?.status || ''}` }),
-        h('button', { class: 'close', title: 'Close terminal', textContent: '×' }),
-      );
-      return el;
-    }),
-  );
-  nav.scrollLeft = scroll;
-  $('#empty').hidden = tabs.length > 0;
-  const active = tabs.find((t) => t.id === activeId);
-  document.title = active ? `${active.title} · ${config.hostname}` : `Terminal · ${config.hostname}`;
-}
-
-function tabMenu(tab, anchor) {
-  const dir = tab.currentPath || tab.cwd;
-  toggleMenu(anchor, [
-    { label: 'Rename', run: () => renameTab(tab) },
-    tab.renamed && { label: 'Back to automatic title', run: () => setTabTitle(tab, '') },
-    {
-      label: 'Show folder in Files',
-      run: () => {
-        openDir(dir);
-        setFilesOpen(true);
-      },
-    },
-    { label: 'New terminal in this folder', run: () => createTab(dir) },
-    { label: 'Close terminal', danger: true, run: () => closeTab(tab) },
-  ]);
 }
 
 function activate(id, { focus = !touch } = {}) {
@@ -230,12 +184,12 @@ function activate(id, { focus = !touch } = {}) {
   local.set('active', id);
   const view = ensureView(tab);
   for (const v of views.values()) v.el.classList.toggle('active', v === view);
-  renderTabs();
-  $('#tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  renderList();
   fitView(view);
   if (!view.ws) connect(view);
+  else setConn(view.status || 'online');
   if (focus) view.term.focus();
-  if (narrow()) setFilesOpen(false);
+  if (narrow()) sidebar.setDrawer(false);
 }
 
 async function createTab(dir) {
@@ -249,18 +203,8 @@ async function createTab(dir) {
 }
 
 async function setTabTitle(tab, title) {
-  try {
-    await api('PATCH', `/api/tabs/${tab.id}`, { title });
-    await refreshTabs();
-  } catch (err) {
-    fail(err);
-  }
-}
-
-function renameTab(tab) {
-  const title = prompt('Terminal name (empty = automatic title)', tab.title);
-  if (title === null || title.trim() === tab.title) return;
-  setTabTitle(tab, title.trim());
+  await api('PATCH', `/api/tabs/${tab.id}`, { title });
+  await refreshTabs();
 }
 
 async function closeTab(tab) {
@@ -273,6 +217,9 @@ async function closeTab(tab) {
   }
 }
 
+$('#new-tab').addEventListener('click', () => createTab());
+$('#empty-new').addEventListener('click', () => createTab());
+
 // --------------------------------------------------------------- terminal
 
 function ensureView(tab) {
@@ -280,19 +227,16 @@ function ensureView(tab) {
   if (view) return view;
   const el = h('div', { class: 'term' });
   $('#terms').append(el);
+  const accent = toHex(accentFor(hueOf(tab.id)));
   const term = new Terminal({
     fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
     fontSize: narrow() ? 12 : 13,
+    lineHeight: 1.15,
     cursorBlink: true,
     scrollback: 2000,
     macOptionIsMeta: true,
     macOptionClickForcesSelection: true,
-    theme: {
-      background: '#121212',
-      foreground: '#e6e6e6',
-      cursor: '#6ea8fe',
-      selectionBackground: '#6ea8fe55',
-    },
+    theme: { background: '#1c1d20', foreground: '#ecedef', cursor: accent, cursorAccent: '#1c1d20', selectionBackground: `${accent}55` },
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
@@ -318,8 +262,7 @@ function destroyView(id) {
 
 function setStatus(view, status) {
   view.status = status;
-  const tab = [...$('#tabs').children][tabs.findIndex((t) => t.id === view.id)];
-  tab?.querySelector('.dot')?.setAttribute('class', `dot ${status}`);
+  if (view.id === activeId) setConn(status === '' ? 'online' : status);
 }
 
 function wsSend(view, msg) {
@@ -335,7 +278,7 @@ function connect(view) {
   ws.onopen = () => {
     view.retries = 0;
     view.term.reset(); // tmux redraws the whole screen on attach
-    setStatus(view, '');
+    setStatus(view, 'online');
     fitView(view);
   };
   ws.onmessage = (e) => view.term.write(e.data);
@@ -359,10 +302,12 @@ function fitView(view) {
   } catch {}
 }
 
-let fitFrame;
+// Panels slide in and out: refit once the size settles, not on every frame
+// (each fit resizes the tmux session).
+let fitTimer;
 new ResizeObserver(() => {
-  cancelAnimationFrame(fitFrame);
-  fitFrame = requestAnimationFrame(() => fitView(views.get(activeId)));
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(() => fitView(views.get(activeId)), 80);
 }).observe($('#terms'));
 
 // Phones drop sockets while asleep; reconnect as soon as the page is back.
@@ -375,8 +320,34 @@ document.addEventListener('visibilitychange', () => {
 // Titles follow whatever runs in each tab, so keep the list fresh.
 setInterval(() => !document.hidden && refreshTabs(), 3000);
 
-$('#new-tab').addEventListener('click', () => createTab());
-$('#empty-new').addEventListener('click', () => createTab());
+// -------------------------------------------------------------- shortcuts
+
+// Captured before xterm sees them, so they never reach the shell.
+const SHORTCUTS = [
+  {
+    match: (e) => tmod(e) && /^Digit[1-9]$/.test(e.code),
+    run: (e) => {
+      const tab = tabs[Number(e.code.slice(5)) - 1];
+      if (!tab) return false;
+      activate(tab.id);
+    },
+  },
+  { match: (e) => e.code === 'KeyN' && (isMac ? e.metaKey && e.ctrlKey && !e.altKey : e.ctrlKey && e.altKey), run: () => createTab() },
+  { match: (e) => tmod(e) && e.code === 'KeyB', run: () => sidebar.toggle() },
+  { match: (e) => tmod(e) && e.code === 'KeyE', run: () => setFiles(!document.body.classList.contains('files-open')) },
+];
+document.addEventListener(
+  'keydown',
+  (e) => {
+    const s = SHORTCUTS.find((x) => x.match(e));
+    if (!s || s.run(e) === false) return;
+    e.preventDefault();
+    e.stopPropagation();
+  },
+  true,
+);
+$('#new-tab-hint').textContent = isMac ? '⌃⌘N' : 'Ctrl+Alt+N';
+$('#files-hint').textContent = `${TMOD}E`;
 
 // ------------------------------------------------------- touch key strip
 
@@ -409,11 +380,13 @@ let listing = null;
 let showHidden = local.get('hidden', false);
 $('#show-hidden').checked = showHidden;
 
-function setFilesOpen(open) {
-  document.body.classList.toggle('files-hidden', !open);
-  if (!narrow()) local.set('files', open);
+function setFiles(open) {
+  document.body.classList.toggle('files-open', open);
+  $('#toggle-files').classList.toggle('active', open);
+  local.set('files', open || null);
+  if (open && narrow()) sidebar.setDrawer(false);
 }
-$('#toggle-files').addEventListener('click', () => setFilesOpen(document.body.classList.contains('files-hidden')));
+$('#toggle-files').addEventListener('click', () => setFiles(!document.body.classList.contains('files-open')));
 
 async function openDir(path) {
   try {
@@ -442,23 +415,24 @@ function renderFiles() {
   const entries = listing.entries.filter((e) => showHidden || !e.name.startsWith('.'));
   const list = $('#file-list');
   list.replaceChildren(
-    ...entries.map((entry) =>
-      h(
+    ...entries.map((entry) => {
+      const more = h('button', { class: 'more', type: 'button', innerHTML: MORE_ICON, 'aria-label': 'Actions' });
+      return h(
         'li',
         {
           class: `${entry.type}${entry.name.startsWith('.') ? ' hidden-file' : ''}`,
           title: entry.path,
           onclick: (e) => {
-            if (e.target.closest('.more')) return fileMenu(entry, e.target.closest('.more'));
+            if (e.target.closest('.more')) return fileMenu(entry, more);
             entry.type === 'dir' ? openDir(entry.path) : openFile(entry);
           },
         },
-        h('span', { textContent: entry.type === 'dir' ? '📁' : '📄' }),
+        h('span', { class: 'icon', innerHTML: entry.type === 'dir' ? ICONS.folder : ICONS.file }),
         h('span', { class: 'name', textContent: entry.name + (entry.link ? ' ↪' : '') }),
         entry.type === 'file' ? h('span', { class: 'meta', textContent: formatSize(entry.size) }) : null,
-        h('button', { class: 'more', textContent: '⋯', title: 'Actions' }),
-      ),
-    ),
+        more,
+      );
+    }),
   );
   if (!entries.length) list.append(h('li', { class: 'msg', textContent: 'Empty folder' }));
 }
@@ -468,13 +442,13 @@ function insertPath(path) {
   const view = views.get(activeId);
   if (!view) return toast('Open a terminal first', true);
   wsSend(view, { t: 'i', d: `${shellQuote(path)} ` });
-  if (narrow()) setFilesOpen(false);
+  if (narrow()) setFiles(false);
   toast('Path typed into the terminal');
 }
 
 function fileMenu(entry, anchor) {
   const isDir = entry.type === 'dir';
-  toggleMenu(anchor, [
+  showMenu(anchor, [
     isDir ? { label: 'New terminal here', run: () => createTab(entry.path) } : { label: 'Open', run: () => openFile(entry) },
     !isDir && { label: 'Download', run: () => download(entry.path) },
     { label: 'Type path into terminal', run: () => insertPath(entry.path) },
@@ -528,8 +502,9 @@ async function upload(files) {
   openDir(cwd);
 }
 
-$('.files-actions').addEventListener('click', async (e) => {
-  const act = e.target.closest('button')?.dataset.act;
+$('.files-head').addEventListener('click', async (e) => {
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'close') setFiles(false);
   if (act === 'up' && listing?.parent) openDir(listing.parent);
   if (act === 'refresh') openDir(cwd);
   if (act === 'upload') $('#upload-input').click();
@@ -553,7 +528,7 @@ $('.files-actions').addEventListener('click', async (e) => {
 });
 $('#show-hidden').addEventListener('change', (e) => {
   showHidden = e.target.checked;
-  local.set('hidden', showHidden);
+  local.set('hidden', showHidden || null);
   renderFiles();
 });
 $('#upload-input').addEventListener('change', (e) => {
@@ -583,7 +558,7 @@ filesPanel.addEventListener('drop', (e) => {
 
 const editor = $('#editor');
 const editorText = $('#editor-text');
-let editing = null;
+let editingFile = null;
 
 async function openFile(entry) {
   try {
@@ -595,7 +570,7 @@ async function openFile(entry) {
     }
     if (!res.ok) throw new Error((await res.json()).error);
     const text = await res.text();
-    editing = { path: entry.path, original: text };
+    editingFile = { path: entry.path, original: text };
     $('#editor-name').textContent = tildify(entry.path);
     $('#editor-status').textContent = '';
     editorText.value = text;
@@ -608,14 +583,14 @@ async function openFile(entry) {
 }
 
 async function saveFile() {
-  if (!editing) return;
+  if (!editingFile) return;
   const text = editorText.value;
   $('#editor-status').textContent = 'saving…';
   try {
-    await api('PUT', `/api/fs/write?path=${encodeURIComponent(editing.path)}`, text);
-    editing.original = text;
-    $('#editor-status').textContent = `saved at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-    if (listing && editing.path.startsWith(cwd)) openDir(cwd);
+    await api('PUT', `/api/fs/write?path=${encodeURIComponent(editingFile.path)}`, text);
+    editingFile.original = text;
+    $('#editor-status').textContent = `saved at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    if (listing && editingFile.path.startsWith(cwd)) openDir(cwd);
   } catch (err) {
     $('#editor-status').textContent = '';
     fail(err);
@@ -623,14 +598,14 @@ async function saveFile() {
 }
 
 function closeEditor() {
-  if (editing && editorText.value !== editing.original && !confirm('Discard unsaved changes?')) return;
-  editing = null;
+  if (editingFile && editorText.value !== editingFile.original && !confirm('Discard unsaved changes?')) return;
+  editingFile = null;
   editor.close();
 }
 
 $('#editor-save').addEventListener('click', saveFile);
 $('#editor-close').addEventListener('click', closeEditor);
-$('#editor-download').addEventListener('click', () => editing && download(editing.path));
+$('#editor-download').addEventListener('click', () => editingFile && download(editingFile.path));
 editor.addEventListener('cancel', (e) => {
   e.preventDefault();
   closeEditor();
@@ -648,11 +623,12 @@ editorText.addEventListener('keydown', (e) => {
 
 // ------------------------------------------------------------------- boot
 
+setConn('connecting');
 try {
   config = await api('GET', '/api/config');
 } catch (err) {
   fail(err);
 }
-setFilesOpen(narrow() ? false : local.get('files', true));
+if (local.get('files', false) && !narrow()) setFiles(true);
 await refreshTabs();
 openDir(cwd || config.workdir);
