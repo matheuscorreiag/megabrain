@@ -5,7 +5,7 @@
   "workdir": "~",
   "shell": "/bin/zsh",
   "allowedLogins": [],
-  "dataDir": "~/.term-hub",
+  "dataDir": "~/.megabrain",
   "agent": {
     "type": "claude",
     "command": "claude",

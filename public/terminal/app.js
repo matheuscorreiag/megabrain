@@ -156,7 +156,7 @@ function renderList() {
   setHue(active ? hueOf(active.id) : undefined);
 }
 
-// Pinned tabs (tmux @hub_pinned, their place from 1) come first, in the
+// Pinned tabs (tmux @megabrain_pinned, their place from 1) come first, in the
 // server's order — mirrored here so a drop shows at once.
 const isPinned = (t) => t.pinned != null;
 const byPlace = (a, b) => (a.pinned ?? Infinity) - (b.pinned ?? Infinity) || a.created - b.created;
@@ -608,7 +608,7 @@ let editingFile = null;
 
 async function openFile(entry) {
   try {
-    const res = await fetch(`/api/fs/read?path=${encodeURIComponent(entry.path)}`, { headers: { 'x-hub': '1' } });
+    const res = await fetch(`/api/fs/read?path=${encodeURIComponent(entry.path)}`, { headers: { 'x-megabrain': '1' } });
     if (res.status === 413 || res.status === 415) {
       const { error } = await res.json();
       if (confirm(`${error[0].toUpperCase()}${error.slice(1)}. Download it now?`)) download(entry.path);

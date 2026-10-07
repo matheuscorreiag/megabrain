@@ -53,7 +53,7 @@ owner's subscription — no API key, no Agent SDK). The UI must stay
 ```
 browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680)
                                          ├─ /ws/chat      lib/chat.js ──► agent process per chat (lib/agents/<type>.js)
-                                         ├─ /ws/tabs/<id> lib/terminal.js ──► node-pty ⇄ tmux -L term-hub
+                                         ├─ /ws/tabs/<id> lib/terminal.js ──► node-pty ⇄ tmux -L megabrain
                                          ├─ /api/*        REST (chats, uploads, local images, tabs, files)
                                          └─ static        public/ (no build step)
 ```
@@ -73,7 +73,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `public/render.js` | chat items → DOM (markdown, tool cards via `TOOLS`, images, streaming drafts) |
 | `public/loader.js` | the "working" indicator (small, swappable contract) |
 | `public/terminal/*` | terminal page |
-| `bin/hub` | open the same tmux tabs over SSH |
+| `bin/megabrain` | open the same tmux tabs over SSH |
 | `scripts/launchd.sh` | install / start / stop / restart / uninstall the launchd agent |
 | `macos/` | the macOS app (Swift package, `build.sh`); see below |
 
@@ -86,7 +86,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   (`session`, `draft-start`, `draft-delta`, `block`, `tool-result`, `context`,
   `limits`, `result`, `notice` — documented at the top of `claude.js`).
   `chat.js` turns those into **items** appended to
-  `~/.term-hub/chats/<id>/events.jsonl` and broadcast to every socket watching
+  `~/.megabrain/chats/<id>/events.jsonl` and broadcast to every socket watching
   the chat. Live-only events (drafts) are not persisted.
 - Messages sent while a turn runs go to an in-memory **queue**; one socket's
   messages are processed in order (so "stop" can't overtake "send").
@@ -95,7 +95,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   cwd (the agent's folder now; Claude: the last `cwd` stamp in its own
   session log, `~/.claude/projects/*/<sessionId>.jsonl` — the stream only
   reports the starting one), pinned (its place in Pinned, from 1; absent =
-  not pinned), doneAt / readAt. Account-wide usage windows: `~/.term-hub/limits.json`.
+  not pinned), doneAt / readAt. Account-wide usage windows: `~/.megabrain/limits.json`.
 - **Model / effort**: the chat's settings become the adapter's `--model` /
   `--effort` when its process spawns. A process keeps its flags, so changing
   them retires it (`retire()`: detach, then end stdin) — at once if idle, at
@@ -106,7 +106,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   It's read when a socket that has the chat open is visible (the page sends
   `{ op: 'visibility' }` on connect and on visibilitychange) — at turn end,
   on `open`, or when the page becomes visible. Shared by every device.
-- Images from tool results are saved content-addressed in `~/.term-hub/media/`;
+- Images from tool results are saved content-addressed in `~/.megabrain/media/`;
   uploads go there too. Attachments are passed to the agent as image blocks
   (png/jpeg/gif/webp) and always also by path.
 
@@ -127,31 +127,33 @@ to a generic card.
 
 ### Terminals
 
-- Each tab is a tmux session `hub-<8 hex>` on the dedicated socket
-  `tmux -L term-hub` (config: `tmux.conf`), running a login shell. Tabs survive
+- Each tab is a tmux session `megabrain-<8 hex>` on the dedicated socket
+  `tmux -L megabrain` (config: `tmux.conf`), running a login shell. Tabs survive
   browser disconnects and can be attached from several devices (`window-size
   latest`).
-- Titles: user-set `@hub_title` wins, else the program's terminal title, else
+- Titles: user-set `@megabrain_title` wins, else the program's terminal title, else
   the folder name. Tab accent hue is derived from the id (no stored color).
-- Pinned: the session option `@hub_pinned` (its place, from 1 — tmux's `#{?}`
-  reads 0 as false). `bin/hub` lists in the same order as the sidebar.
+- Pinned: the session option `@megabrain_pinned` (its place, from 1 — tmux's `#{?}`
+  reads 0 as false). `bin/megabrain` lists in the same order as the sidebar.
 - The Files API is confined to `config.root` (symlinks resolved); "delete" moves
   to the macOS Trash.
 
 ### macOS app
 
-- `macos/` builds `Hub.app` (`macos/build.sh`; SwiftPM, no Xcode project). It
+- `macos/` builds `Megabrain.app` (`macos/build.sh`; SwiftPM, no Xcode project). It
   is a client like a browser: a WKWebView on the panel's URL (This Mac =
   `http://127.0.0.1:7680`, or another Mac's Tailscale URL), so the UI stays one
   codebase. Native code only adds what a tab can't do. The bundle has to be
-  called something ("Hub"); the UI inside still shows no name. The title bar
+  called something ("Megabrain"); the UI inside still shows no name. The title bar
   shows no title (`titleVisibility = .hidden`) — the chat and its folder are
   in the status line; the window's title stays the app's name, never the open
   chat's, for the Window menu and Mission Control. Its icon is
-  `macos/AppIcon.svg` (drawn on Apple's 1024 grid: two bars and the cyan hub
-  between them); the menu-bar glyph is the same mark drawn in code
-  (`StatusMenu.glyph()`). The web favicon (`public/icon.svg`) is separate.
-- The page knows it's inside through the `hub` message handler (`native` in
+  `macos/AppIcon.svg` (drawn on Apple's 1024 grid: a brain seen from above,
+  its two halves with the grooves cut out by a mask, and the cyan core between
+  them); the menu-bar glyph is the same mark drawn in code
+  (`StatusMenu.glyph()`, fewer and thicker grooves so they survive 18pt). The
+  web favicon (`public/icon.svg`) is the same brain, larger, on a rounded square.
+- The page knows it's inside through the `megabrain` message handler (`native` in
   ui.js: standalone-style ⌘N hints, and it posts `{ op: 'power', on }`). The
   app's own pages ("Not running") post `start` / `retry`.
 - **Shortcuts**: the page gets ⌘-keys first (WKWebView hands key equivalents to
@@ -164,8 +166,8 @@ to a generic card.
   marks a chat read. In front, the page's notice covers it (no banner).
 - Closing the window hides it; external links and `target=_blank` open in the
   default browser; confirm/prompt/file inputs/downloads get native panels.
-- **Test**: `macos/build.sh --debug` builds `Hub-debug.app` (own bundle id) with
-  `SelfTest.swift`; run `macos/.build/Hub-debug.app/Contents/MacOS/Hub -selfTest
+- **Test**: `macos/build.sh --debug` builds `Megabrain-debug.app` (own bundle id) with
+  `SelfTest.swift`; run `macos/.build/Megabrain-debug.app/Contents/MacOS/Megabrain -selfTest
   <dir> -localPort 7681` against a test server. It sends real ⌘-key events
   through AppKit, flips the power switch, goes through the native confirm and
   writes `results.txt` plus snapshots (screen capture isn't available to an
@@ -173,7 +175,7 @@ to a generic card.
   menu-bar icon appear while it runs. `-launchdLabel com.example.none` plays a
   Mac without a server (the "Connect to Another Mac…" page).
 - **Releases**: bump `macos/VERSION`, commit and push, then `macos/release.sh`
-  builds a universal (arm64 + x86_64) `Hub.app`, zips it with `ditto` (keeps the
+  builds a universal (arm64 + x86_64) `Megabrain.app`, zips it with `ditto` (keeps the
   bundle and signature) and creates the GitHub release `macos-v<VERSION>` with
   the zip. Ad hoc signed: downloads need "Open Anyway" once; notarizing would
   need a paid Apple developer account.
@@ -244,7 +246,7 @@ to a generic card.
   runtime — they still never go in tracked files. It flags Tailscale Funnel
   if it's on.
 - Cross-site protection: `Origin`/`Sec-Fetch-Site` checks on API and WebSocket
-  upgrades, plus a required `X-Hub: 1` header on every write.
+  upgrades, plus a required `X-Megabrain: 1` header on every write.
 - Media and `/api/local-image` (images under `$HOME` only) are served with a
   sandboxing CSP and `nosniff`.
 - `config.json` (has the owner's Tailscale login) is gitignored — never commit
@@ -261,11 +263,11 @@ npm start                         # uses config.json (port 7680)
 with a cheap model and a scratch data dir:
 
 ```json
-{ "port": 7681, "dataDir": "/tmp/hubtest/data", "agent": { "type": "claude", "model": "haiku", "idleMinutes": 1 } }
+{ "port": 7681, "dataDir": "/tmp/megabrain-test/data", "agent": { "type": "claude", "model": "haiku", "idleMinutes": 1 } }
 ```
 
 ```bash
-HUB_CONFIG=/path/to/test-config.json node server.js
+MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
 ```
 
 - Drive the UI with headless Chrome over CDP (`--remote-debugging-port`,
@@ -284,7 +286,7 @@ HUB_CONFIG=/path/to/test-config.json node server.js
 - Server changes (`server.js`, `lib/`) need `scripts/launchd.sh restart`. A
   restart kills running agent processes: **first check that no chat is running**
   (`curl -s http://127.0.0.1:7680/api/chats` → every `status` is `idle`).
-- Logs: `~/Library/Logs/term-hub.log`.
+- Logs: `~/Library/Logs/megabrain.log`.
 - **On / off** is a state of the running server, not of the process: a page
   can't start a stopped server, so off keeps the process up (idle) and only
   drops the keep-awake assertion, stops agents and closes every socket. While
@@ -295,7 +297,7 @@ HUB_CONFIG=/path/to/test-config.json node server.js
   `scripts/launchd.sh install` if an old plist still wraps it in `caffeinate`.
 - `scripts/launchd.sh stop` / `start` stop the process entirely (disable +
   bootout, so neither KeepAlive nor the next login restarts it).
-  `HUB_LABEL=<other label>` makes the script manage another job with its own
+  `MEGABRAIN_LABEL=<other label>` makes the script manage another job with its own
   plist and log — test launchd changes that way, with a config on another port.
 
 ## Gotchas already hit
@@ -358,8 +360,8 @@ HUB_CONFIG=/path/to/test-config.json node server.js
 
 ## Data and persistence
 
-- `~/.term-hub/chats/<id>/{meta.json,events.jsonl}`, `~/.term-hub/media/`,
-  `~/.term-hub/limits.json`, `~/.term-hub/off` (present while turned off). The
+- `~/.megabrain/chats/<id>/{meta.json,events.jsonl}`, `~/.megabrain/media/`,
+  `~/.megabrain/limits.json`, `~/.megabrain/off` (present while turned off). The
   agent's own transcripts (used by `--resume`) live in `~/.claude/`.
 - Survives connection drops and restarts. Lost on a hard shutdown mid-turn:
   the block being streamed and the in-memory queue. Ideas not done yet:
@@ -369,6 +371,6 @@ HUB_CONFIG=/path/to/test-config.json node server.js
 
 - Communicate in Portuguese; keep the app and code in English.
 - Commit and push only when asked; the repo is private
-  (`github.com/matheuscorreiag/term-hub`).
+  (`github.com/matheuscorreiag/megabrain`).
 - Verify UI changes in a real browser (desktop and phone sizes) before saying
   they work, and say what wasn't verified.

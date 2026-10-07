@@ -1,9 +1,9 @@
 // swift-tools-version:5.9
-// The macOS app (Hub.app). Build and install with macos/build.sh.
+// The macOS app (Megabrain.app). Build and install with macos/build.sh.
 import PackageDescription
 
 let package = Package(
-  name: "Hub",
+  name: "Megabrain",
   platforms: [.macOS(.v14)],
-  targets: [.executableTarget(name: "Hub", path: "Sources/Hub")]
+  targets: [.executableTarget(name: "Megabrain", path: "Sources/Megabrain")]
 )

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Keep term-hub running in the background: starts at login and restarts if it
+# Keep megabrain running in the background: starts at login and restarts if it
 # dies. (While it's on, the server holds off idle sleep itself — see
 # lib/power.js; the panel's Turn off / Turn on don't need this script.)
 #
@@ -9,11 +9,11 @@
 #   scripts/launchd.sh restart     restart (after editing config.json or code)
 #   scripts/launchd.sh uninstall   stop + remove
 #
-# HUB_LABEL=<label> manages another job (with its own plist and log), for tests.
+# MEGABRAIN_LABEL=<label> manages another job (with its own plist and log), for tests.
 # Settings come from config.json, read on every start.
 set -eu
 
-LABEL=${HUB_LABEL:-com.matheuscorreiag.term-hub}
+LABEL=${MEGABRAIN_LABEL:-com.matheuscorreiag.megabrain}
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG="$HOME/Library/Logs/${LABEL##*.}.log"
 DIR=$(cd "$(dirname "$0")/.." && pwd)

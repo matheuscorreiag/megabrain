@@ -27,7 +27,7 @@ enum Prefs {
   #if DEBUG
     static var testServerURL: URL? // the self-test points the app at a dead port
   #endif
-  static var launchdLabel: String { defaults.string(forKey: "launchdLabel") ?? "com.matheuscorreiag.term-hub" }
+  static var launchdLabel: String { defaults.string(forKey: "launchdLabel") ?? "com.matheuscorreiag.megabrain" }
 
   // Just scheme, host and port: "https://mac.tailnet.ts.net/#abc" → "https://mac.tailnet.ts.net".
   static func normalized(_ text: String) -> URL? {
@@ -74,7 +74,7 @@ final class Server {
   func setPower(_ on: Bool, then done: (() -> Void)? = nil) {
     var request = URLRequest(url: Prefs.serverURL.appending(path: on ? "api/turn-on" : "api/turn-off"))
     request.httpMethod = "POST"
-    request.setValue("1", forHTTPHeaderField: "X-Hub")
+    request.setValue("1", forHTTPHeaderField: "X-Megabrain")
     URLSession.shared.dataTask(with: request) { _, _, _ in
       DispatchQueue.main.async { self.refresh(then: done) }
     }.resume()
