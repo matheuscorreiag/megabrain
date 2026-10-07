@@ -399,6 +399,17 @@ body.resizing {
     box-shadow: inset 0 0 0 1px var(--item-accent), 0 0 0 4px color-mix(in oklab, var(--item-accent) 22%, transparent);
   }
 }
+/* Shadows only interpolate when each pair agrees on inset: the active
+   avatar's glow is an outer shadow, so it pulses with the glow first or it
+   would jump between the two at 50%. */
+.side-item.active .avatar.busy {
+  animation-name: avatar-busy-active;
+}
+@keyframes avatar-busy-active {
+  50% {
+    box-shadow: 0 0 18px -4px color-mix(in oklab, var(--item-accent) 70%, transparent), 0 0 0 4px color-mix(in oklab, var(--item-accent) 22%, transparent);
+  }
+}
 .side-item .text {
   flex: 1;
   min-width: 0;
