@@ -39,10 +39,12 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   **Rename**: double-click a name in the sidebar or use its ⋯ menu.
   **Width**: drag the sidebar's right edge (double-click it for the default);
   both pages share it.
-- **Status line under the message box** — this chat (number and title), the
-  model, this chat's **context** and the account's **usage windows** (5h and
-  7d for Claude) as progress bars; tap any of them for token counts and
-  reset times.
+- **Status line under the message box** — the **folder the chat's agent is
+  working in** (it follows a `cd`; a new chat shows where it will start; a
+  long path is trimmed from the left), the model, this chat's **context** and
+  the account's **usage windows** (5h and 7d for Claude) as progress bars; tap
+  any of them for token counts and reset times. The open chat is the one lit
+  in the sidebar.
 - **Model and effort per chat** — tap the model in the status line: Default /
   Fable / Opus / Sonnet / Haiku and an effort level (low … max; Haiku has
   none). Changes apply from the next message: the agent process restarts and
@@ -73,25 +75,32 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   | Keys | Action |
   | --- | --- |
   | ⌘1 … ⌘9 | open chat 1–9 |
-  | ⌘N (installed app) or ⌃⌘N | new chat |
+  | ⌘N (app) / ⇧⌘N (browser) | new chat |
   | ⌘B | show / hide the sidebar |
   | ⌘J | open the latest reply (the notice's chat, or the newest unread) |
   | ⌘K | go to the message box |
+  | ⇧⌘E | rename this chat (or double-click it in the sidebar) |
+  | ⇧⌘D | delete this chat (asks first) |
+  | ⌘T (app) / ⇧⌘T (browser) | open the terminal (the same keys come back) |
   | ⌘/ | Shortcuts screen |
   | Enter / ⇧Enter | send / new line |
+  | ↑ / ↓ (empty box) | suggest one of this chat's last 5 messages (faded; the box stays empty) |
+  | Tab | take the suggestion into the box, to edit or send |
   | Esc | stop the agent |
 
-  Off macOS: Ctrl instead of ⌘, and Ctrl+Alt+N for a new chat. Install the app (Chrome: "Install"; Safari: "Add
-  to Dock") so ⌘1…⌘9 aren't taken by browser tabs — and so ⌘N opens a new chat
-  instead of a browser window (in a Chrome tab the browser keeps ⌘N).
+  "App" is the macOS app or the web app installed from the browser (Chrome:
+  "Install"; Safari: "Add to Dock"): there every key reaches the page. In a
+  plain Chrome tab the browser keeps ⌘1…⌘9, and both ⌘N/⌘T and ⇧⌘N/⇧⌘T (new
+  window, new tab, incognito, reopen tab). Off macOS: Ctrl instead of ⌘, and
+  Ctrl+Shift+N / Ctrl+Shift+T.
 - The thread reads like a log: numbered, timestamped prompts, and the reply
   hanging from each on a rail where tool calls (Bash, Read, Edit with a diff,
   todo lists…) are one-line entries that open on click. Streaming Markdown,
   code blocks with "copy".
 - **Images** — the ones you attach (phone photos are downscaled first), the
   ones the agent reads with tools, and any image whose path it mentions. Tap
-  to enlarge. Other attachments are saved to `~/.term-hub/media/` and their
-  path goes into the message.
+  to enlarge — an attachment too, before you send it. Other attachments are
+  saved to `~/.term-hub/media/` and their path goes into the message.
 
 ## Customize
 
@@ -211,9 +220,10 @@ opens the same ones over SSH (`hub`, `hub 2`, `hub new`).
 | Keys | Action |
 | --- | --- |
 | ⌘1 … ⌘9 | switch terminal |
-| ⌘N (installed app) or ⌃⌘N | new terminal (in the folder open in Files) |
+| ⌘N (app) / ⇧⌘N (browser) | new terminal (in the folder open in Files) |
 | ⌘B | show / hide the sidebar |
 | ⌘E | show / hide Files |
+| ⌘T (app) / ⇧⌘T (browser) | back to the chats |
 
-Off macOS they use Ctrl+Shift (Ctrl+Alt+N for a new terminal), since plain
-Ctrl+B / Ctrl+E belong to the shell.
+Off macOS they use Ctrl+Shift, since plain Ctrl+B / Ctrl+E / Ctrl+N belong to
+the shell.

@@ -40,8 +40,9 @@ owner's subscription — no API key, no Agent SDK). The UI must stay
   `--dangerously-skip-permissions` on a machine inside the office network.
 - Minimal chrome: no header bar. The sidebar toggle sits inside the sidebar
   when open and floats top-left when closed; the connection status is just a
-  dot next to it. The open chat's title, model and usage live in a status line
-  under the composer.
+  dot next to it. The agent's folder, model and usage live in a status line
+  under the composer — not the chat's name (the owner dropped it; the sidebar
+  shows which chat is open).
 - Look: Instrument Sans for text, Martian Mono for labels, code and readouts
   (self-hosted in `public/fonts/`); small radii, hairlines, a faint grain. The
   thread is a log — numbered prompts, the reply on a rail with tool calls as
@@ -91,7 +92,9 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   messages are processed in order (so "stop" can't overtake "send").
 - Per chat meta (`meta.json`): title, hue, sessionId, model, modelLabel,
   context `{ used, window }`, settings `{ model, effort }` (null = default),
-  doneAt / readAt. Account-wide usage windows: `~/.term-hub/limits.json`.
+  cwd (the agent's folder now; Claude: the last `cwd` stamp in its own
+  session log, `~/.claude/projects/*/<sessionId>.jsonl` — the stream only
+  reports the starting one), doneAt / readAt. Account-wide usage windows: `~/.term-hub/limits.json`.
 - **Model / effort**: the chat's settings become the adapter's `--model` /
   `--effort` when its process spawns. A process keeps its flags, so changing
   them retires it (`retire()`: detach, then end stdin) — at once if idle, at
@@ -109,9 +112,11 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 ### Adding another agent
 
 Create `lib/agents/<type>.js` exporting `{ name, spawnArgs, userMessage,
-interruptMessage, createParser }` (optionally `limitLabel`, `modelLabel`, and
+interruptMessage, createParser }` (optionally `limitLabel`, `modelLabel`,
 `models` `[{ id, label, note, effort: false? }]` / `efforts` for the per-chat
-picker; the UI shows whatever the adapter offers, nothing if it offers none),
+picker — the UI shows whatever the adapter offers, nothing if it offers none —
+and `currentDir(sessionId)`, where the agent works now: the status line's
+folder, refreshed after tool results and turns into meta `cwd`),
 register it in `lib/agents/index.js`, set `agent.type` in `config.json`.
 Known limitation: `chat.js` assumes a **persistent process speaking JSON lines**.
 A one-shot CLI (e.g. `codex exec`) or an HTTP API needs the transport moved into
@@ -136,7 +141,12 @@ to a generic card.
   is a client like a browser: a WKWebView on the panel's URL (This Mac =
   `http://127.0.0.1:7680`, or another Mac's Tailscale URL), so the UI stays one
   codebase. Native code only adds what a tab can't do. The bundle has to be
-  called something ("Hub"); the UI inside still shows no name.
+  called something ("Hub"); the UI inside still shows no name. The window's
+  title is fixed (the app's name), not the open chat's — the chat and its
+  folder are in the status line. Its icon is
+  `macos/AppIcon.svg` (drawn on Apple's 1024 grid: two bars and the cyan hub
+  between them); the menu-bar glyph is the same mark drawn in code
+  (`StatusMenu.glyph()`). The web favicon (`public/icon.svg`) is separate.
 - The page knows it's inside through the `hub` message handler (`native` in
   ui.js: standalone-style ⌘N hints, and it posts `{ op: 'power', on }`). The
   app's own pages ("Not running") post `start` / `retry`.
@@ -175,18 +185,32 @@ to a generic card.
 - Sidebar items are rendered **in place, keyed by id** (rebuilding them breaks
   double-click rename and focus). Hold re-renders while an inline rename is
   open.
+- Confirmations and one-line prompts use `ask()` (ui.js), not `confirm()` /
+  `prompt()`: the app's look, Enter / Esc / click outside, focus kept inside,
+  page ⌘-shortcuts held while it's open. Delete chat (⇧⌘D and the ⋯ menu) and
+  rename (⇧⌘E) use it; older `confirm()` calls (terminal page, Turn off) can
+  move to it.
+- Recent messages (↑ / ↓ / Tab in an empty message box, app.js `remember` /
+  `suggest`) come from the open chat's `user` items — history plus live
+  items — so nothing extra is stored; the suggestion is the textarea's
+  placeholder, never its value.
 - The sidebar's width is `--side-w` (base.css). Dragging its right edge
   (`setupResize()` in ui.js, desktop only) overrides it on `<html>`, clamped to
   200–520px, and saves it in localStorage `ui:sidebarWidth` for both pages.
   Size sidebar content against `--side-w`, never a fixed 272px.
 - Shortcuts are one table per page (chat: `SHORTCUTS` in `app.js`, also drives
-  the Shortcuts screen). Chat: ⌘1–9, ⌃⌘N, ⌘B, ⌘J, ⌘K, ⌘/. Terminal: ⌘1–9, ⌃⌘N, ⌘B,
-  ⌘E — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E
-  belong to the shell. ⌘N/⌘T/⌘W never reach a page in a Chrome tab (reserved),
-  only in the installed app's window (Chrome reserves no keys for apps): ⌘N is
-  "new chat / new terminal" there, and ⌃⌘N stays as the fallback that works in
-  tabs. Don't rely on ⌘T/⌘W in the browser; in the macOS app ⌘W closes (hides)
-  the window.
+  the Shortcuts screen). Chat: ⌘1–9, ⌘B, ⌘J, ⌘K, ⌘/, ⇧⌘E rename, ⇧⌘D delete
+  (not ⌘⌫, the Mac's usual delete: in the message box it erases the line;
+  not ⇧⌘R, the browser's hard reload). Terminal: ⌘1–9, ⌘B, ⌘E
+  — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E belong
+  to the shell. Both: N = new chat / terminal, T = chats ↔ terminal, via
+  `appKey()` / `isAppKey()` in ui.js: plain ⌘N / ⌘T in the macOS app or an
+  installed app window (`standalone`), ⇧⌘N / ⇧⌘T in a browser
+  (Ctrl+Shift+N / T off macOS); either form matches. The owner chose these over
+  ⌃⌘ — no Control or Option combos. Caveat: a plain Chrome tab keeps ⌘N/⌘T/⌘W
+  and ⇧⌘N/⇧⌘T/⇧⌘W (new window/tab, incognito, reopen tab) and pages can't
+  take them; only app windows get them. In the macOS app ⌘W closes (hides) the
+  window.
 
 ## Security model
 
@@ -280,6 +304,21 @@ HUB_CONFIG=/path/to/test-config.json node server.js
   or their borders shift anything centered by formula (the rail nodes).
 - **Grid overflow**: long unbreakable titles widen `1fr` columns — use
   `minmax(0, 1fr)`.
+- **iPhone Home Screen app** (`navigator.standalone`, black-translucent status
+  bar): the page starts under the status bar but iOS makes it only
+  `innerHeight` tall — that bar's height (47pt) short of the screen's bottom.
+  The band below is not the page's: nothing can be painted there (a "fill the
+  screen" attempt just cut the footer off). The home bar sits in that band, so
+  `syncHeight()` (ui.js) sets `html.no-home-bar` (`--safe-bottom: 0`) then, as
+  it does while the keyboard covers the home bar. The page is always exactly
+  the visual viewport: `body` is `position: fixed` at `--app-top` (the
+  viewport's `offsetTop` — iOS pans it to the focused field) with `--app-h`;
+  `html` stays `100%`, since anything taller than the browser's viewport makes
+  the page scrollable. Anything floating above the message box (`#jump`) is
+  anchored to `#composer-wrap`, not a fixed `bottom`. `classList.toggle(x,
+  undefined)` flips the class — pass real booleans (`navigator.standalone` is
+  undefined off iOS). A different `apple-mobile-web-app-status-bar-style`
+  (e.g. `black`) might make iOS size the page to the bottom; untried.
 - **xterm.js colors** must be sRGB; convert `oklch()` through a canvas.
 - **Keyboard capture over xterm**: page shortcuts listen on `document` in the
   capture phase and `stopPropagation()` so the terminal never sees them.
@@ -293,6 +332,13 @@ HUB_CONFIG=/path/to/test-config.json node server.js
   `text-transform`. Delegate methods must match the SDK's signatures exactly
   (`@MainActor @Sendable` handlers) or AppKit never calls them — a clean build
   must show no "nearly matches" warnings.
+- **Typing is never rewritten** (prompts are code and commands): the message
+  box (and the Files editor) carry `autocorrect="off" autocapitalize="off"
+  spellcheck="false" writingsuggestions="false"`, and the macOS app registers
+  `WebAutomatic{SpellingCorrection,QuoteSubstitution,DashSubstitution,
+  TextReplacement}Enabled = false` (main.swift) plus `allowsInlinePredictions
+  = false` — otherwise WebKit turns `"x" --y` into `“x” —y`. Each layer alone
+  stops it (verified: the self-test types real keystrokes).
 
 ## Data and persistence
 

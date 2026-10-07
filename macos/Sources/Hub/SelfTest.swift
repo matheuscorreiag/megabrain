@@ -55,12 +55,27 @@
 
     // A real ⌘-key event, offered the way AppKit does: the focused view first
     // (WKWebView passes it to the page), then the menus.
-    @MainActor private func press(_ chars: String, _ keyCode: UInt16) {
+    @MainActor private func press(_ chars: String, _ keyCode: UInt16, _ mods: NSEvent.ModifierFlags = .command) {
       let event = NSEvent.keyEvent(
-        with: .keyDown, location: .zero, modifierFlags: .command, timestamp: ProcessInfo.processInfo.systemUptime,
+        with: .keyDown, location: .zero, modifierFlags: mods, timestamp: ProcessInfo.processInfo.systemUptime,
         windowNumber: web.window.windowNumber, context: nil, characters: chars, charactersIgnoringModifiers: chars,
         isARepeat: false, keyCode: keyCode)!
       if !web.webView.performKeyEquivalent(with: event) { _ = NSApp.mainMenu?.performKeyEquivalent(with: event) }
+    }
+
+    // Plain typing, one character at a time, as keystrokes.
+    @MainActor private func type(_ text: String) async {
+      for ch in text {
+        let s = String(ch)
+        for kind in [NSEvent.EventType.keyDown, .keyUp] {
+          let event = NSEvent.keyEvent(
+            with: kind, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: web.window.windowNumber, context: nil, characters: s, charactersIgnoringModifiers: s,
+            isARepeat: false, keyCode: ch == " " ? 49 : 0)!
+          NSApp.sendEvent(event)
+        }
+        await wait(0.03)
+      }
     }
 
     @MainActor private func snapshot(_ name: String) async {
@@ -86,7 +101,26 @@
       check("page knows it runs in the app (⌘N hint)", await text("document.querySelector('#new-chat-hint')?.textContent") == "⌘N")
       let firstChat = await text("location.hash.slice(1)")
       await snapshot("window")
-      check("window title follows the page", web.window.title == web.webView.title && !web.window.title.isEmpty, web.window.title)
+      check("window title is fixed, not the chat's", web.window.title == (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String) && web.window.title != web.webView.title, web.window.title)
+      check("status line shows the agent's folder", await until(3) { !(await self.text("document.querySelector('#chat-dir')?.textContent || ''")).isEmpty }, await text("document.querySelector('#chat-dir')?.textContent || ''"))
+
+      // Typing isn't rewritten: real keystrokes into the message box. Text input
+      // needs focus, so the app comes to the front for a moment.
+      check("no inline word predictions", web.webView.configuration.allowsInlinePredictions == false)
+      check("the message box opts out of autocorrect and suggestions", await flag("(() => { const i = document.querySelector('#input'); return !i.spellcheck && i.getAttribute('autocorrect') === 'off' && i.getAttribute('autocapitalize') === 'off' && i.getAttribute('writingsuggestions') === 'false'; })()"))
+      let previous = NSWorkspace.shared.frontmostApplication
+      NSApp.activate()
+      web.window.makeKeyAndOrderFront(nil)
+      web.window.makeFirstResponder(web.webView)
+      await js("document.querySelector('#input').focus()")
+      await wait(0.5)
+      let typed = "\"hi\" -- teh "
+      await type(typed)
+      await wait(1.5)
+      let value = await text("document.querySelector('#input').value")
+      check("typing isn't rewritten (quotes, dashes, spelling)", value == typed, value)
+      await js("(() => { const i = document.querySelector('#input'); i.value = ''; i.dispatchEvent(new Event('input')); i.blur(); })()")
+      previous?.activate()
 
       // The chat feed (its own socket) and the badge.
       check("feed receives the chat list", await until(5) { self.app.chatCount > 0 }, app.chatCount)
@@ -106,8 +140,39 @@
       press("1", 18)
       let first = (try? await web.webView.callAsyncJavaScript("return (await (await fetch('/api/chats')).json())[0]?.id || ''", contentWorld: .page)) as? String ?? ""
       check("⌘1 opens the first chat", await until(1.5) { await self.text("location.hash.slice(1)") == first && !first.isEmpty }, first)
+      check("app hints are plain ⌘N / ⌘T", await text("document.querySelector('#new-chat-hint').textContent + ' ' + document.querySelector('#terminal-hint').textContent") == "⌘N ⌘T")
       press("n", 45)
       check("⌘N starts a new chat", await until(1.5) { await self.text("location.hash") == "" })
+      press("t", 17)
+      check("⌘T opens the terminal", await until(3) { await self.text("location.pathname") == "/terminal/" })
+      _ = await until(3) { await self.text("document.readyState") == "complete" }
+      await wait(0.8)
+      press("t", 17)
+      check("⌘T goes back to the chats", await until(3) { await self.text("location.pathname") == "/" })
+      _ = await until(5) { await self.text("document.querySelector('#conn')?.dataset.state") == "online" }
+
+      // Rename / delete without the mouse: a dialog first, Esc backs out.
+      web.open(chat: first)
+      _ = await until(3) { await self.text("location.hash.slice(1)") == first }
+      await wait(0.8)
+      let escape = "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))"
+      let title = await text("(document.querySelector('#chat-list .active .name') || {}).textContent || ''")
+      press("e", 14, [.command, .shift])
+      check("⇧⌘E opens the rename dialog with the name", await until(2) { await self.text("document.querySelector('.ask-input')?.value ?? '-'") == title && !title.isEmpty }, title)
+      await js(escape)
+      check("…Esc closes it", await until(1) { !(await self.flag("!!document.querySelector('.ask-backdrop')")) })
+      press("d", 2, [.command, .shift])
+      check("⇧⌘D asks before deleting", await until(2) { await self.flag("!!document.querySelector('.ask-ok.danger')") })
+      await js(escape)
+      check("…Esc keeps the chat", await until(1) {
+        let open = await self.flag("!!document.querySelector('.ask-backdrop')")
+        let here = await self.text("location.hash.slice(1)")
+        return !open && here == first
+      })
+      let fileMenu = NSApp.mainMenu?.item(withTitle: "File")?.submenu
+      if let item = fileMenu?.item(withTitle: "Delete Chat…"), let index = fileMenu?.index(of: item) { fileMenu?.performActionForItem(at: index) }
+      check("File ▸ Delete Chat… asks too", await until(2) { await self.flag("!!document.querySelector('.ask-ok.danger')") })
+      await js(escape)
 
       // The menu path on its own: what a shortcut does when the page isn't focused.
       let before = await flag("document.body.classList.contains('sidebar-collapsed')")

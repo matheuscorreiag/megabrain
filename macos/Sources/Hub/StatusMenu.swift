@@ -12,7 +12,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
   init(app: AppDelegate) {
     self.app = app
     super.init()
-    item.button?.image = NSImage(systemSymbolName: "terminal", accessibilityDescription: "Server")
+    item.button?.image = Self.glyph()
     menu.autoenablesItems = false
     menu.delegate = self
     item.menu = menu
@@ -49,6 +49,21 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     add("Open at Login", #selector(AppDelegate.toggleLoginItem(_:))).state = LoginItem.enabled ? .on : .off
     menu.addItem(.separator())
     add("Quit", #selector(NSApplication.terminate(_:)), target: NSApp)
+  }
+
+  // The app icon's mark — two bars and the hub between them — as a template.
+  private static func glyph() -> NSImage {
+    let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+      NSColor.black.setFill()
+      for x in [3.0, 12.0] {
+        NSBezierPath(roundedRect: NSRect(x: x, y: 3, width: 3, height: 12), xRadius: 1.5, yRadius: 1.5).fill()
+      }
+      NSBezierPath(ovalIn: NSRect(x: 6.9, y: 6.9, width: 4.2, height: 4.2)).fill()
+      return true
+    }
+    image.isTemplate = true
+    image.accessibilityDescription = "Server"
+    return image
   }
 
   @discardableResult

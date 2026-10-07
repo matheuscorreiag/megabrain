@@ -54,6 +54,7 @@
   --mono: 'Martian Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --col: 780px;
   --side-w: 272px; /* the sidebar; dragging its edge overrides it (ui.js) */
+  --safe-bottom: env(safe-area-inset-bottom); /* the phone's home bar */
   --ease: cubic-bezier(0.3, 0.7, 0.2, 1);
   /* Film grain over the flat surfaces (a tiny tiled SVG noise). */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -73,11 +74,20 @@
   background: color-mix(in oklab, var(--accent) 35%, transparent);
 }
 
+/* The home bar isn't over the page: the keyboard covers it, or the page stops
+   above it (ui.js syncHeight). */
+html.no-home-bar {
+  --safe-bottom: 0px;
+}
+
+/* html stays the browser's viewport (never taller, or the page could scroll);
+   the pinned body takes --app-h, the visible part (ui.js syncHeight). */
 html,
 body {
   margin: 0;
-  height: var(--app-h);
+  height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--text);
   font: 15px/1.6 var(--sans);
@@ -86,7 +96,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Pinned: the page itself never scrolls, only its panes. With an iPhone's
+   keyboard up, iOS pans the visible area to the field being typed in;
+   --app-top follows it (ui.js syncHeight), so the page is always exactly the
+   visible part, the message box at its bottom. */
 body {
+  position: fixed;
+  top: var(--app-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--app-h);
   display: grid;
   grid-template-columns: var(--side-w) 1fr;
   background: var(--grain), var(--bg);
@@ -526,7 +545,7 @@ body.show-keys .side-item .more {
 .side-foot {
   display: grid;
   gap: 2px;
-  padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+  padding: 8px 12px calc(10px + var(--safe-bottom));
   border-top: 1px solid var(--line-soft);
 }
 /* Connection status: just a dot, at the top of the sidebar next to its
@@ -769,6 +788,83 @@ body.sidebar-collapsed #open-sidebar {
   color: var(--muted);
   white-space: pre-line;
   overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ dialogs */
+
+/* ask() in ui.js: confirmations and one-line prompts. Above popovers and the
+   reply notice, below the "Turned off" screen and toasts. */
+.ask-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.5);
+}
+.ask {
+  width: min(380px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  animation: pop-in 0.14s var(--ease);
+}
+.ask h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ask p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.ask-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 var(--sans);
+  outline: none;
+}
+.ask-input:focus {
+  border-color: var(--accent);
+}
+.ask-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ask-actions button {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised-2);
+  color: var(--text);
+  font: 500 13px/1.3 var(--sans);
+}
+.ask-actions .ask-ok {
+  border-color: color-mix(in oklab, var(--accent) 50%, var(--line));
+  background: color-mix(in oklab, var(--accent) 18%, var(--raised));
+}
+.ask-actions .ask-ok.danger {
+  border-color: color-mix(in oklab, var(--danger) 55%, var(--line));
+  background: color-mix(in oklab, var(--danger) 24%, var(--raised));
+}
+.ask-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 #toast {

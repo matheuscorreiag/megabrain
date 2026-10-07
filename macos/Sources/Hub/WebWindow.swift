@@ -20,6 +20,7 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
   override init() {
     let config = WKWebViewConfiguration()
     config.applicationNameForUserAgent = "Hub"
+    config.allowsInlinePredictions = false // no gray word completions as you type (see main.swift)
     let frame = NSRect(x: 0, y: 0, width: 1280, height: 820)
     webView = WKWebView(frame: frame, configuration: config)
     window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -41,8 +42,9 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
     window.delegate = self
     window.center()
     window.setFrameAutosaveName("Main")
+    // A fixed title (the app's name): the open chat is in the status line.
+    window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Hub"
     observers = [
-      webView.observe(\.title) { [weak self] view, _ in self?.window.title = view.title ?? "" },
       webView.observe(\.themeColor) { [weak self] view, _ in self?.window.backgroundColor = view.themeColor ?? Self.background },
     ]
   }
@@ -74,9 +76,9 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
   // Menu shortcuts end up in the page, whose shortcut tables decide what they
   // do. With the page focused it gets ⌘-keys before the menus anyway; this
   // covers the rest (window hidden, focus in a native panel).
-  func shortcut(code: String, key: String) {
+  func shortcut(code: String, key: String, control: Bool = false, shift: Bool = false) {
     show()
-    let event = "new KeyboardEvent('keydown', { code: \(Self.jsString(code)), key: \(Self.jsString(key)), metaKey: true, bubbles: true, cancelable: true })"
+    let event = "new KeyboardEvent('keydown', { code: \(Self.jsString(code)), key: \(Self.jsString(key)), metaKey: true, ctrlKey: \(control), shiftKey: \(shift), bubbles: true, cancelable: true })"
     webView.evaluateJavaScript("document.dispatchEvent(\(event))")
   }
 

@@ -36,7 +36,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Hub"
 sed -e "s/__ID__/$ID/" -e "s/__NAME__/$NAME/" -e "s/__VERSION__/$VERSION/g" "$DIR/Info.plist" >"$APP/Contents/Info.plist"
-swift "$DIR/make-icon.swift" "$DIR/../public/icon.svg" "$APP/Contents/Resources/AppIcon.icns"
+swift "$DIR/make-icon.swift" "$DIR/AppIcon.svg" "$APP/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$APP"
 
 if [ "$INSTALL" = no ]; then

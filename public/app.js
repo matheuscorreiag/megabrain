@@ -5,7 +5,7 @@
 
 import { Thread } from '/render.js';
 import { createLoader } from '/loader.js';
-import { $, h, touch, narrow, isMac, MOD, standalone, native, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
+import { $, h, touch, narrow, isMac, MOD, standalone, native, appKey, isAppKey, ask, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
 const local = storage('chat'); // last chat, unsent drafts, settings for new chats
@@ -27,7 +27,7 @@ const state = {
   attachments: [], // { id, name, mediaType, preview, uploading, file, url }
   sends: new Map(), // ref -> what was sent, to restore it on error
   editing: false, // a title is being renamed inline: hold list re-renders
-  agent: { models: [], efforts: [] }, // per-chat choices the agent offers
+  agent: { models: [], efforts: [], cwd: null, home: null }, // per-chat choices the agent offers, where it starts
   newSettings: { model: null, effort: null, ...local.get('newSettings', {}) }, // for the next new chat
   listed: false, // the first list arrived (later unread changes are news)
   off: false, // turned off from here: stop reconnecting
@@ -128,8 +128,9 @@ function onMessage(m) {
   const here = m.chatId && m.chatId === state.chatId;
   switch (m.op) {
     case 'agent':
-      state.agent = { models: m.models, efforts: m.efforts };
+      state.agent = { models: m.models, efforts: m.efforts, cwd: m.cwd || null, home: m.home || null };
       renderStats();
+      renderDir();
       break;
 
     case 'chats': {
@@ -154,6 +155,7 @@ function onMessage(m) {
       state.opening = null;
       thread.reset();
       for (const item of [...m.items, ...buffered]) thread.add(item);
+      remember([...m.items, ...buffered]);
       for (const draft of m.drafts) thread.live({ t: 'start', ...draft });
       applyStatus(m.status, m.queue);
       scrollToBottom();
@@ -176,6 +178,7 @@ function onMessage(m) {
       if (state.opening) return state.opening.buffer.push(m.item);
       thread.add(m.item);
       itemPhase(m.item);
+      remember([m.item]);
       break;
 
     case 'live':
@@ -253,6 +256,7 @@ function setView(view) {
 
 function openChat(id) {
   const changed = id !== state.chatId;
+  if (changed) forgetRecent();
   state.chatId = id || null;
   local.set('last', state.chatId);
   thread.reset();
@@ -289,10 +293,22 @@ const current = () => state.chats.find((c) => c.id === state.chatId);
 const renameChat = (id, title) => api('PATCH', `/api/chats/${id}`, { title });
 
 async function deleteChat(chat) {
-  if (!confirm(`Delete "${chat.title || 'this chat'}"? Its history is removed from the app.`)) return;
+  const sure = await ask({
+    title: 'Delete this chat?',
+    text: `"${chat.title || 'New chat'}" and its history are removed from the app.`,
+    confirm: 'Delete',
+    danger: true,
+  });
+  if (!sure) return;
   await api('DELETE', `/api/chats/${chat.id}`)
     .then(() => chat.id === state.chatId && go(null))
     .catch(fail);
+}
+
+// Without the mouse (⇧⌘E): the same rename as double-clicking it in the sidebar.
+async function renameWithDialog(chat) {
+  const title = await ask({ title: 'Rename chat', value: chat.title || '', confirm: 'Rename' });
+  if (title && title !== chat.title) await renameChat(chat.id, title).catch(fail);
 }
 
 // Items are kept and updated in place (keyed by id): rebuilding them would
@@ -453,24 +469,25 @@ function renderHeader() {
   const n = unreadCount();
   document.title = `${n ? `(${n}) ` : ''}${state.view === 'shortcuts' ? 'Shortcuts' : chat?.title || 'New chat'}`;
   applyAccent();
-  renderTitle();
+  renderDir();
   renderStats();
 }
 
-// The open chat in the status line: its number and title.
-function renderTitle() {
-  const chat = current();
-  const i = state.chats.indexOf(chat);
-  const el = $('#chat-title');
-  el.title = chat?.title || '';
-  el.replaceChildren(
-    ...[
-      h('span', { class: 'swatch' }),
-      chat && h('span', { class: 'num', textContent: indexLabel(i) }),
-      h('span', { class: 't', textContent: chat?.title || 'New chat' }),
-    ].filter(Boolean),
-  );
+// The status line's left side: the folder the open chat's agent works in (a
+// new chat: where it will start). The chat itself is the one lit in the sidebar.
+function renderDir() {
+  const dir = current()?.cwd || state.agent.cwd;
+  const el = $('#chat-dir');
+  el.title = dir || '';
+  // LRM marks keep the slashes in order inside the rtl box, which trims a long
+  // path from the left so its last folders stay visible.
+  el.textContent = dir ? `\u200e${shortPath(dir)}\u200e` : '';
 }
+
+const shortPath = (dir) => {
+  const home = state.agent.home;
+  return home && (dir === home || dir.startsWith(`${home}/`)) ? `~${dir.slice(home.length)}` : dir;
+};
 
 $('#new-chat').addEventListener('click', newChat);
 
@@ -657,6 +674,7 @@ function openUsage(anchor) {
 // the keydown event; `run` returns false when it didn't apply. Entries
 // without `match` are handled elsewhere (composer, sidebar) and only listed.
 const mod = (e) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey) && !e.altKey;
+const shiftMod = (e) => e.shiftKey && !e.altKey && (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
 const SHORTCUTS = [
   {
     id: 'switch',
@@ -672,10 +690,10 @@ const SHORTCUTS = [
   },
   {
     id: 'new',
-    keys: [`${MOD}N`, 'or', isMac ? '⌃⌘N' : 'Ctrl+Alt+N'],
+    keys: [appKey('N')],
     label: 'New chat',
-    note: `${MOD}N in the installed app — a browser tab keeps it for a new window`,
-    match: (e) => e.code === 'KeyN' && !e.shiftKey && (mod(e) || (isMac ? e.metaKey && e.ctrlKey && !e.altKey : e.ctrlKey && e.altKey && !e.metaKey)),
+    note: isMac && !standalone ? 'Just ⌘N in the macOS app or an installed app window' : null,
+    match: (e) => isAppKey(e, 'N'),
     run: () => newChat(),
   },
   {
@@ -701,6 +719,30 @@ const SHORTCUTS = [
     run: () => focusInput(),
   },
   {
+    id: 'terminal',
+    keys: [appKey('T')],
+    label: 'Open the terminal',
+    note: 'The same keys bring you back to the chats',
+    match: (e) => isAppKey(e, 'T'),
+    run: () => (location.href = '/terminal/'),
+  },
+  {
+    id: 'rename',
+    keys: [isMac ? '⇧⌘E' : 'Ctrl+Shift+E'],
+    label: 'Rename this chat',
+    note: 'Or double-click it in the sidebar',
+    match: (e) => shiftMod(e) && e.code === 'KeyE',
+    run: () => (current() ? renameWithDialog(current()) : false),
+  },
+  {
+    id: 'delete',
+    keys: [isMac ? '⇧⌘D' : 'Ctrl+Shift+D'],
+    label: 'Delete this chat',
+    note: 'Asks first',
+    match: (e) => shiftMod(e) && e.code === 'KeyD',
+    run: () => (current() ? deleteChat(current()) : false),
+  },
+  {
     id: 'shortcuts',
     keys: [`${MOD}/`],
     label: 'Open this screen',
@@ -710,7 +752,8 @@ const SHORTCUTS = [
   { id: 'send', keys: ['Enter'], label: 'Send message', note: 'On a phone, use the send button' },
   { id: 'newline', keys: ['⇧Enter'], label: 'New line in the message' },
   { id: 'stop', keys: ['Esc'], label: 'Stop the agent', note: 'While it is working, with the message box focused' },
-  { id: 'rename', keys: ['Double-click'], label: 'Rename a chat', note: 'Double-click it in the sidebar, or use its ⋯ menu' },
+  { id: 'recall', keys: ['↑', '↓'], label: 'Suggest a recent message', note: "In an empty message box: this chat's last 5, newest first" },
+  { id: 'take', keys: ['Tab'], label: 'Use the suggestion', note: 'Puts it in the box, to edit or send' },
 ];
 
 document.addEventListener(
@@ -723,8 +766,9 @@ document.addEventListener(
   true,
 );
 
-$('#new-chat-hint').textContent = standalone ? `${MOD}N` : isMac ? '⌃⌘N' : 'Ctrl+Alt+N';
+$('#new-chat-hint').textContent = appKey('N');
 $('#shortcuts-hint').textContent = `${MOD}/`;
+$('#terminal-hint').textContent = appKey('T');
 
 // The Shortcuts screen: what each one does and its keys.
 $('#shortcut-list').replaceChildren(
@@ -890,11 +934,26 @@ function moveDraft(from, to) {
 }
 
 input.addEventListener('input', () => {
+  if (pick >= 0 && input.value) suggest(-1); // typing dismisses a suggestion
   autosize();
   updateSend();
   local.set(draftKey(), input.value);
 });
+input.addEventListener('blur', () => suggest(-1));
 input.addEventListener('keydown', (e) => {
+  const plain = !e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.isComposing;
+  if (plain && e.key === 'ArrowUp' && !input.value && recent.length) {
+    e.preventDefault();
+    return suggest(Math.min(pick + 1, recent.length - 1));
+  }
+  if (pick >= 0) {
+    if (e.key === 'ArrowDown') suggest(pick - 1);
+    else if (e.key === 'Tab') take();
+    else if (e.key === 'Escape') suggest(-1);
+    else if (e.key !== 'Enter') return; // anything else: type over it (the input event dismisses it)
+    // Enter does nothing here: on an empty box it would stop a running agent.
+    return e.preventDefault();
+  }
   if (e.key === 'Enter' && !e.isComposing) {
     if (e.shiftKey || touch) return;
     e.preventDefault();
@@ -904,6 +963,54 @@ input.addEventListener('keydown', (e) => {
     wsSend({ op: 'interrupt', chatId: state.chatId });
   }
 });
+
+// ------------------------------------------------------- recent messages
+
+// ↑ on an empty message box suggests this chat's last messages (newest first,
+// up to RECENT, repeats once) as a faded placeholder — the box itself stays
+// empty — ↓ goes back, Tab takes it into the box to edit or send.
+const RECENT = 5;
+const PLACEHOLDER = input.placeholder;
+let recent = []; // the open chat's, newest first
+let pick = -1; // the one suggested, -1 = none
+
+function remember(items) {
+  const before = recent.join('\n');
+  for (const item of items) {
+    const text = item.t === 'user' && item.text?.trim();
+    if (text) recent = [text, ...recent.filter((t) => t !== text)].slice(0, RECENT);
+  }
+  if (pick >= 0 && recent.join('\n') !== before) suggest(-1); // the list moved under it
+}
+
+function forgetRecent() {
+  recent = [];
+  suggest(-1);
+}
+
+function suggest(i) {
+  pick = i;
+  const on = i >= 0;
+  input.placeholder = on ? recent[i] : PLACEHOLDER;
+  input.classList.toggle('suggesting', on);
+  $('#recall').hidden = !on;
+  if (on) $('#recall').textContent = `${i + 1}/${recent.length} · Tab`;
+  if (!on) return autosize();
+  // Size the box to the suggestion: measure it as a value, then empty it again.
+  input.value = recent[i];
+  input.style.height = 'auto';
+  const height = input.scrollHeight;
+  input.value = '';
+  input.style.height = `${height}px`;
+}
+
+function take() {
+  const text = recent[pick];
+  suggest(-1);
+  input.value = text;
+  input.setSelectionRange(text.length, text.length);
+  input.dispatchEvent(new Event('input')); // size, send button, draft
+}
 
 $('#composer').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -983,10 +1090,21 @@ async function addFiles(files) {
 
 function renderAttachments() {
   $('#attachments').replaceChildren(
-    ...state.attachments.map((a) =>
-      h(
+    ...state.attachments.map((a) => {
+      // An image opens full size before it's sent: anywhere on the chip but ×.
+      const preview = a.preview ? () => showImage(a.preview, a.url) : null;
+      return h(
         'div',
-        { class: `chip${a.uploading ? ' uploading' : ''}`, title: a.name },
+        {
+          class: `chip${a.uploading ? ' uploading' : ''}${preview ? ' previewable' : ''}`,
+          title: preview ? `${a.name} — click to preview` : a.name,
+          ...(preview && {
+            role: 'button',
+            tabindex: '0',
+            onclick: preview,
+            onkeydown: (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), preview()),
+          }),
+        },
         a.preview ? h('img', { src: a.preview, alt: '' }) : null,
         h('span', { class: 'name', textContent: a.uploading ? 'uploading…' : a.name }),
         h('button', {
@@ -994,14 +1112,15 @@ function renderAttachments() {
           class: 'chip-x',
           textContent: '×',
           'aria-label': 'Remove attachment',
-          onclick: () => {
+          onclick: (e) => {
+            e.stopPropagation(); // not a preview
             state.attachments = state.attachments.filter((x) => x !== a);
             renderAttachments();
             updateSend();
           },
         }),
-      ),
-    ),
+      );
+    }),
   );
 }
 
@@ -1025,12 +1144,19 @@ $('#main').addEventListener('drop', (e) => {
 // --------------------------------------------------------------- lightbox
 
 const lightbox = $('#lightbox');
+
+// original: what "open original" links to. An attachment not sent yet shows
+// its local copy (blob:) and links to the uploaded one, once it's there.
+function showImage(src, original = src.startsWith('blob:') ? '' : src) {
+  lightbox.querySelector('img').src = src;
+  $('#lightbox-open').href = original || '';
+  $('#lightbox-open').hidden = !original;
+  lightbox.hidden = false;
+}
+
 document.addEventListener('click', (e) => {
   const img = e.target.closest('img.zoomable');
-  if (!img) return;
-  lightbox.querySelector('img').src = img.src;
-  $('#lightbox-open').href = img.src;
-  lightbox.hidden = false;
+  if (img) showImage(img.src);
 });
 lightbox.addEventListener('click', (e) => {
   if (!e.target.closest('a')) lightbox.hidden = true;

@@ -1,11 +1,11 @@
 // Terminal page: tmux-backed terminal tabs (lib/terminal.js) in the same
-// layout as the chat page — sidebar list with per-tab accents, ⌘1–9 / ⌃⌘N /
+// layout as the chat page — sidebar list with per-tab accents, ⌘1–9 / ⌘N /
 // ⌘B — plus a Files panel on the right. Shared pieces: /ui.js, /base.css.
 
 import { Terminal } from '/vendor/xterm.mjs';
 import { FitAddon } from '/vendor/addon-fit.mjs';
 import { WebLinksAddon } from '/vendor/addon-web-links.mjs';
-import { $, h, touch, narrow, isMac, standalone, api, storage, toast, fail, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
+import { $, h, touch, narrow, isMac, appKey, isAppKey, api, storage, toast, fail, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
 
 const local = storage('terminal'); // active tab, last folder, panels
 let config = { root: '/', workdir: '/', home: '/', hostname: '' };
@@ -343,13 +343,10 @@ const SHORTCUTS = [
       activate(tab.id);
     },
   },
-  // ⌘N too (reaches the page in the installed app); off macOS Ctrl+N is the shell's.
-  {
-    match: (e) => e.code === 'KeyN' && !e.shiftKey && (isMac ? e.metaKey && !e.altKey : e.ctrlKey && e.altKey),
-    run: () => createTab(),
-  },
+  { match: (e) => isAppKey(e, 'N'), run: () => createTab() },
   { match: (e) => tmod(e) && e.code === 'KeyB', run: () => sidebar.toggle() },
   { match: (e) => tmod(e) && e.code === 'KeyE', run: () => setFiles(!document.body.classList.contains('files-open')) },
+  { match: (e) => isAppKey(e, 'T'), run: () => (location.href = '/') },
 ];
 document.addEventListener(
   'keydown',
@@ -361,8 +358,9 @@ document.addEventListener(
   },
   true,
 );
-$('#new-tab-hint').textContent = isMac ? (standalone ? '⌘N' : '⌃⌘N') : 'Ctrl+Alt+N';
+$('#new-tab-hint').textContent = appKey('N');
 $('#files-hint').textContent = `${TMOD}E`;
+$('#chats-hint').textContent = appKey('T');
 
 // ------------------------------------------------------- touch key strip
 

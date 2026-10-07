@@ -15,6 +15,12 @@ export const native = hub ? (msg) => hub.postMessage(msg) : null;
 // The installed app's window, or the macOS app. Only there do ⌘N / ⌘T / ⌘W
 // reach the page: in a browser tab Chrome keeps them (new window, tab, close).
 export const standalone = Boolean(native) || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// N: new chat / terminal; T: chats ↔ terminal. In the macOS app or an
+// installed app window just ⌘N / ⌘T; elsewhere ⇧⌘N / ⇧⌘T (a plain Chrome tab
+// keeps both pairs for itself). Off macOS Ctrl+Shift+N / T: plain Ctrl+N / T
+// are the browser's, and the shell's on the terminal page.
+export const appKey = (letter) => (isMac ? `${standalone ? '' : '⇧'}⌘${letter}` : `Ctrl+Shift+${letter}`);
+export const isAppKey = (e, letter) => e.code === `Key${letter}` && !e.altKey && (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey && !e.metaKey);
 
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);
@@ -82,13 +88,27 @@ export function toast(message, error = false) {
 }
 export const fail = (err) => toast(err?.message || String(err), true);
 
-// Keep the layout inside the visible viewport when the phone keyboard opens.
+// The page is exactly the visible viewport: above the phone keyboard when it's
+// open. The page has no room to keep for the phone's home bar (base.css
+// --safe-bottom) when the keyboard covers it, or when an iPhone Home Screen
+// app under a translucent status bar is drawn that bar's height (~6%) short of
+// the screen's bottom — the home bar then sits in that band, outside the page
+// (which can't paint there either).
 function syncHeight() {
   const height = window.visualViewport?.height ?? window.innerHeight;
+  const portrait = window.innerHeight >= window.innerWidth;
+  const screenHeight = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+  const keyboard = touch && height < screenHeight * 0.75; // a phone keyboard takes 40%+
+  const shortOfBottom = navigator.standalone === true && !keyboard && screenHeight - height > 20;
+  document.documentElement.classList.toggle('no-home-bar', keyboard || shortOfBottom); // a real boolean: toggle(x, undefined) flips
   document.documentElement.style.setProperty('--app-h', `${height}px`);
-  window.scrollTo(0, 0);
+  // Where iOS panned the visible area to (keyboard up); not while pinch-zoomed.
+  const vv = window.visualViewport;
+  const top = vv && Math.abs(vv.scale - 1) < 0.01 ? vv.offsetTop : 0;
+  document.documentElement.style.setProperty('--app-top', `${top}px`);
 }
 window.visualViewport?.addEventListener('resize', syncHeight);
+window.visualViewport?.addEventListener('scroll', syncHeight); // the pan
 window.addEventListener('resize', syncHeight);
 syncHeight();
 
@@ -239,6 +259,69 @@ function setupResize(local) {
     width = null;
     apply();
     local.set('sidebarWidth', null);
+  });
+}
+
+// ----------------------------------------------------------------- dialogs
+
+// A confirmation in the app's own look — or, with `value`, a one-line prompt.
+// Enter confirms, Esc or a click outside cancels; while it's open, the page's
+// ⌘-shortcuts wait. Resolves true / the trimmed text, or null.
+export function ask({ title, text, value, confirm = 'OK', danger = false }) {
+  if (document.querySelector('.ask-backdrop')) return Promise.resolve(null); // one at a time
+  const prompt = value !== undefined;
+  return new Promise((resolve) => {
+    const field = prompt
+      ? h('input', { class: 'ask-input', value, maxLength: 120, 'aria-label': title, spellcheck: false, autocomplete: 'off', autocorrect: 'off' })
+      : null;
+    const cancel = h('button', { type: 'button', textContent: 'Cancel' });
+    const ok = h('button', { type: 'button', class: `ask-ok${danger ? ' danger' : ''}`, textContent: confirm });
+    const box = h(
+      'div',
+      { class: 'ask', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+      h('h2', { textContent: title }),
+      text ? h('p', { textContent: text }) : null,
+      field,
+      h('div', { class: 'ask-actions' }, cancel, ok),
+    );
+    const backdrop = h('div', { class: 'ask-backdrop' }, box);
+    const before = document.activeElement;
+    const done = (result) => {
+      backdrop.remove();
+      window.removeEventListener('keydown', keys, true);
+      before?.focus?.();
+      resolve(result);
+    };
+    const submit = () => {
+      if (!prompt) return done(true);
+      const text = field.value.trim();
+      if (text) done(text);
+      else field.focus();
+    };
+    // On window, capturing: ahead of the page's own key handlers.
+    const keys = (e) => {
+      if (e.key === 'Escape' || (e.key === 'Enter' && !e.isComposing)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Escape') done(null);
+        else if (document.activeElement === cancel) done(null);
+        else submit();
+      } else if (e.key === 'Tab') {
+        e.preventDefault(); // stay inside the dialog
+        const stops = [field, cancel, ok].filter(Boolean);
+        const at = stops.indexOf(document.activeElement);
+        stops[(at + (e.shiftKey ? -1 : 1) + stops.length) % stops.length].focus();
+      } else if (e.metaKey || e.ctrlKey) e.stopPropagation(); // ⌘C/⌘V still edit; page shortcuts wait
+    };
+    cancel.addEventListener('click', () => done(null));
+    ok.addEventListener('click', submit);
+    backdrop.addEventListener('mousedown', (e) => e.target === backdrop && done(null));
+    window.addEventListener('keydown', keys, true);
+    document.body.append(backdrop);
+    if (field) {
+      field.focus();
+      field.select();
+    } else ok.focus();
   });
 }
 

@@ -13,6 +13,19 @@
 
 import AppKit
 
+// What you type is prompts, code and commands: WebKit must not rewrite it —
+// no spelling correction, smart quotes or dashes (`--flag` → `—flag`), text
+// replacements or red underlines. WebKit reads these from the app's defaults
+// (registered, so they stay overridable per launch, e.g. by the self-test).
+UserDefaults.standard.register(defaults: [
+  "WebAutomaticSpellingCorrectionEnabled": false,
+  "WebAutomaticQuoteSubstitutionEnabled": false,
+  "WebAutomaticDashSubstitutionEnabled": false,
+  "WebAutomaticTextReplacementEnabled": false,
+  "WebContinuousSpellCheckingEnabled": false,
+  "WebGrammarCheckingEnabled": false,
+])
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

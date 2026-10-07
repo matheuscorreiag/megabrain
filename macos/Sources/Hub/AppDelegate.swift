@@ -117,7 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // Page shortcuts: the menu item carries the key, the page decides what it does.
   @objc func pageShortcut(_ sender: NSMenuItem) {
     guard let key = sender.representedObject as? [String] else { return }
-    web.shortcut(code: key[0], key: key[1])
+    let mods = sender.keyEquivalentModifierMask
+    web.shortcut(code: key[0], key: key[1], control: mods.contains(.control), shift: mods.contains(.shift))
   }
 
   #if DEBUG
@@ -151,8 +152,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       item.target = target
       return item
     }
-    func page(_ title: String, _ key: String, code: String) -> NSMenuItem {
-      let item = item(title, #selector(pageShortcut(_:)), key, target: self)
+    func page(_ title: String, _ key: String, code: String, _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
+      let item = item(title, #selector(pageShortcut(_:)), key, mods, target: self)
       item.representedObject = [code, key]
       return item
     }
@@ -170,6 +171,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ])
     _ = submenu("File", [
       page("New Chat", "n", code: "KeyN"),
+      page("Rename Chat…", "e", code: "KeyE", [.command, .shift]),
+      page("Delete Chat…", "d", code: "KeyD", [.command, .shift]),
       .separator(),
       item("Close Window", #selector(NSWindow.performClose(_:)), "w"),
     ])
@@ -204,7 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     chats.representedObject = "/"
     let terminals = item("Terminals", #selector(goTo(_:)), target: self)
     terminals.representedObject = "/terminal/"
-    var go = [page("Latest Reply", "j", code: "KeyJ"), .separator(), chats, terminals, .separator()]
+    var go = [page("Latest Reply", "j", code: "KeyJ"), .separator(), page("Chats / Terminal", "t", code: "KeyT"), chats, terminals, .separator()]
     // ⌘1…⌘9 (the sidebar's items) work without cluttering the menu.
     for n in 1...9 {
       let item = page("Item \(n)", "\(n)", code: "Digit\(n)")

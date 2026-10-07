@@ -1,4 +1,5 @@
-// Renders public/icon.svg into the app's AppIcon.icns (used by build.sh).
+// Renders macos/AppIcon.svg into the app's AppIcon.icns (used by build.sh).
+// The SVG is drawn on Apple's 1024 icon grid, margins and shape included.
 //   swift make-icon.swift <icon.svg> <out.icns>
 import AppKit
 
@@ -15,9 +16,7 @@ for (name, px) in [("16x16", 16), ("16x16@2x", 32), ("32x32", 32), ("32x32@2x", 
   let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
   NSGraphicsContext.saveGraphicsState()
   NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-  // macOS icon grid: the shape fills ~80% of the canvas.
-  let inset = Double(px) * 0.1
-  svg.draw(in: NSRect(x: inset, y: inset, width: Double(px) - 2 * inset, height: Double(px) - 2 * inset))
+  svg.draw(in: NSRect(x: 0, y: 0, width: px, height: px))
   NSGraphicsContext.restoreGraphicsState()
   try rep.representation(using: .png, properties: [:])!.write(to: iconset.appending(path: "icon_\(name).png"))
 }
