@@ -29,6 +29,7 @@ const state = {
   editing: false, // a title is being renamed inline: hold list re-renders
   agent: { models: [], efforts: [], cwd: null, home: null }, // per-chat choices the agent offers, where it starts
   newSettings: { model: null, effort: null, ...local.get('newSettings', {}) }, // for the next new chat
+  newDir: null, // where the next new chat starts (a terminal's "New chat in this folder"); null = the agent's folder
   listed: false, // the first list arrived (later unread changes are news)
   off: false, // turned off from here: stop reconnecting
 };
@@ -166,6 +167,7 @@ function onMessage(m) {
       // Our first message made a new chat: it's the one on screen now.
       if (!state.sends.has(m.ref)) return;
       state.chatId = m.chatId;
+      state.newDir = null;
       local.set('last', m.chatId);
       history.replaceState(null, '', `#${m.chatId}`);
       moveDraft('new', m.chatId);
@@ -273,6 +275,8 @@ function openChat(id) {
 }
 
 function newChat() {
+  state.newDir = null;
+  renderDir();
   go(null);
   if (!touch) input.focus();
 }
@@ -505,7 +509,7 @@ function renderHeader() {
 // The status line's left side: the folder the open chat's agent works in (a
 // new chat: where it will start). The chat itself is the one lit in the sidebar.
 function renderDir() {
-  const dir = current()?.cwd || state.agent.cwd;
+  const dir = current()?.cwd || state.newDir || state.agent.cwd;
   const el = $('#chat-dir');
   el.title = dir || '';
   // LRM marks keep the slashes in order inside the rtl box, which trims a long
@@ -1061,8 +1065,10 @@ $('#composer').addEventListener('submit', (e) => {
   if (state.attachments.some((a) => a.uploading)) return toast('Wait for the attachments to upload');
   const ref = randomId();
   const attachments = state.attachments.map((a) => ({ file: a.file, name: a.name }));
-  const settings = state.chatId ? undefined : state.newSettings; // a new chat starts with these
-  if (!wsSend({ op: 'send', ref, chatId: state.chatId, text, attachments, settings })) return toast('Not connected to the server', true);
+  // A new chat starts with these.
+  const settings = state.chatId ? undefined : state.newSettings;
+  const dir = state.chatId ? undefined : state.newDir || undefined;
+  if (!wsSend({ op: 'send', ref, chatId: state.chatId, text, attachments, settings, dir })) return toast('Not connected to the server', true);
   state.sends.set(ref, { text, attachments: state.attachments });
   input.value = '';
   local.set(draftKey(), null);
@@ -1208,8 +1214,13 @@ document.addEventListener('keydown', (e) => {
 
 // ------------------------------------------------------------------- boot
 
-// Opening the app without a link resumes the last chat.
-if (route().view === 'chat' && !hashId() && local.get('last', null)) history.replaceState(null, '', `#${local.get('last')}`);
+// /?dir=<folder> (the terminal page's "New chat in this folder"): a new chat
+// that starts there. Otherwise, opening the app without a link resumes the last chat.
+const startDir = new URLSearchParams(location.search).get('dir');
+if (startDir) {
+  state.newDir = startDir;
+  history.replaceState(null, '', '/');
+} else if (route().view === 'chat' && !hashId() && local.get('last', null)) history.replaceState(null, '', `#${local.get('last')}`);
 state.chatId = route().view === 'chat' ? hashId() : local.get('last', null);
 $('#welcome').hidden = Boolean(state.chatId);
 restoreDraft();

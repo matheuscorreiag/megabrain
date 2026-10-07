@@ -367,22 +367,204 @@ body.files-open #files {
   font-size: 10.5px;
   white-space: nowrap;
 }
+/* The code editor (editor.js, CodeMirror). Ids outrank its own theme. */
 #editor-text {
   flex: 1;
-  resize: none;
-  padding: 14px;
+  min-height: 0;
+  overflow: hidden;
   color: var(--text);
   background: var(--code-bg);
   border: 1px solid var(--line-soft);
   border-radius: 7px;
+}
+#editor-text:focus-within {
+  border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+}
+#editor-text .cm-editor {
+  height: 100%;
+  background: none;
+  color: var(--text);
+}
+#editor-text .cm-editor.cm-focused {
   outline: none;
+}
+#editor-text .cm-scroller {
   font: 12.5px/1.6 var(--mono);
   font-stretch: 87.5%;
-  tab-size: 2;
-  white-space: pre;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
-#editor-text:focus {
+#editor-text .cm-content {
+  padding: 14px 0;
+  caret-color: var(--accent);
+}
+#editor-text .cm-line {
+  padding: 0 14px 0 8px;
+}
+#editor-text .cm-gutters {
+  background: var(--code-bg);
+  border: none;
+  color: color-mix(in oklab, var(--faint) 70%, transparent);
+}
+#editor-text .cm-lineNumbers .cm-gutterElement {
+  padding: 0 4px 0 14px;
+}
+#editor-text .cm-activeLine {
+  background: color-mix(in oklab, var(--text) 4%, transparent);
+}
+#editor-text .cm-activeLineGutter {
+  background: none;
+  color: var(--muted);
+}
+#editor-text .cm-cursor,
+#editor-text .cm-dropCursor {
+  border-left: 2px solid var(--accent);
+}
+#editor-text .cm-selectionBackground,
+#editor-text .cm-content ::selection {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+#editor-text .cm-selectionMatch {
+  background: color-mix(in oklab, var(--text) 10%, transparent);
+}
+#editor-text .cm-matchingBracket {
+  background: none;
+  color: var(--text);
+  outline: 1px solid color-mix(in oklab, var(--accent) 70%, transparent);
+  border-radius: 2px;
+}
+#editor-text .cm-nonmatchingBracket {
+  background: none;
+  color: var(--danger);
+}
+#editor-text .cm-searchMatch {
+  background: color-mix(in oklab, var(--warn) 22%, transparent);
+  outline: 1px solid color-mix(in oklab, var(--warn) 50%, transparent);
+}
+#editor-text .cm-searchMatch-selected {
+  background: color-mix(in oklab, var(--warn) 45%, transparent);
+}
+/* Find / replace (⌘F) */
+#editor-text .cm-panels {
+  background: var(--raised);
+  color: var(--text);
+  border-color: var(--line-soft);
+}
+#editor-text .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 36px 8px 10px;
+  font: 12px/1.2 var(--sans);
+}
+#editor-text .cm-panel.cm-search br {
+  display: none;
+}
+#editor-text .cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+#editor-text .cm-textfield {
+  margin: 0;
+  padding: 5px 8px;
+  color: var(--text);
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  outline: none;
+  font: 12px/1.2 var(--mono);
+}
+#editor-text .cm-textfield:focus {
   border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+}
+#editor-text .cm-button {
+  margin: 0;
+  padding: 5px 9px;
+  color: var(--text);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font: 12px/1.2 var(--sans);
+  text-transform: none;
+}
+#editor-text .cm-button:hover {
+  background: color-mix(in oklab, var(--text) 6%, transparent);
+}
+#editor-text .cm-panel.cm-search [name='close'] {
+  top: 50%;
+  right: 8px;
+  translate: 0 -50%;
+  padding: 2px 6px;
+  color: var(--faint);
+  font-size: 18px;
+}
+#editor-text .cm-panel.cm-search [name='close']:hover {
+  color: var(--text);
+}
+/* Syntax: one fixed palette at the accents' lightness, on any hue. */
+#editor-text .tok-keyword {
+  color: oklch(0.76 0.12 300);
+}
+#editor-text .tok-string {
+  color: oklch(0.8 0.11 145);
+}
+#editor-text .tok-string2 {
+  color: oklch(0.78 0.1 180);
+}
+#editor-text .tok-number {
+  color: oklch(0.8 0.12 55);
+}
+#editor-text .tok-function {
+  color: oklch(0.8 0.1 245);
+}
+#editor-text .tok-type {
+  color: oklch(0.85 0.1 95);
+}
+#editor-text .tok-property {
+  color: oklch(0.84 0.06 215);
+}
+#editor-text .tok-attribute {
+  color: oklch(0.8 0.1 70);
+}
+#editor-text .tok-tag {
+  color: oklch(0.76 0.13 18);
+}
+#editor-text .tok-comment {
+  color: var(--faint);
+}
+#editor-text .tok-meta {
+  color: oklch(0.76 0.1 340);
+}
+#editor-text .tok-punctuation {
+  color: var(--muted);
+}
+#editor-text .tok-heading {
+  color: var(--accent);
+  font-weight: 600;
+}
+#editor-text .tok-emphasis {
+  font-style: italic;
+}
+#editor-text .tok-strong {
+  font-weight: 600;
+}
+#editor-text .tok-strike {
+  text-decoration: line-through;
+}
+#editor-text .tok-link {
+  color: oklch(0.8 0.1 245);
+  text-decoration: underline;
+}
+#editor-text .tok-inserted {
+  color: var(--ok);
+}
+#editor-text .tok-deleted,
+#editor-text .tok-invalid {
+  color: var(--danger);
 }
 .dialog-actions {
   display: flex;

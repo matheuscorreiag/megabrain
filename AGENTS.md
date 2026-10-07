@@ -73,6 +73,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `public/render.js` | chat items → DOM (markdown, tool cards via `TOOLS`, images, streaming drafts) |
 | `public/loader.js` | the "working" indicator (small, swappable contract) |
 | `public/terminal/*` | terminal page |
+| `public/terminal/editor.js` | the Files editor: CodeMirror 6, loaded on the first open; languages by file name or `#!` line |
 | `bin/megabrain` | open the same tmux tabs over SSH |
 | `scripts/launchd.sh` | install / start / stop / restart / uninstall the launchd agent |
 | `macos/` | the macOS app (Swift package, `build.sh`); see below |
@@ -92,6 +93,9 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   messages are processed in order (so "stop" can't overtake "send").
 - Per chat meta (`meta.json`): title, hue, sessionId, model, modelLabel,
   context `{ used, window }`, settings `{ model, effort }` (null = default),
+  dir (where its agent starts — a terminal's "New chat in this folder", which
+  opens `/?dir=<folder>`; absent = `agent.cwd`; every process of the chat
+  starts there, as `--resume` finds sessions by folder),
   cwd (the agent's folder now; Claude: the last `cwd` stamp in its own
   session log, `~/.claude/projects/*/<sessionId>.jsonl` — the stream only
   reports the starting one), pinned (its place in Pinned, from 1; absent =
@@ -184,7 +188,11 @@ to a generic card.
 
 - Node ≥ 20, ESM, **no build step, no framework**: vanilla JS modules served
   as-is; vendor libs (xterm, marked, DOMPurify) are mapped from `node_modules`
-  in `server.js`.
+  in `server.js`. CodeMirror is many packages importing each other by name:
+  the terminal page's import map sends `@codemirror/…`, `@lezer/…` (and a few
+  others) to `/vendor/npm/`, which resolves them like Node (the package's
+  `exports`) and redirects to the real file. New packages there need adding to
+  both the import map and `NPM_PACKAGES`.
 - Prettier-like style: 2 spaces, single quotes, semicolons, ~150 cols. Comments
   explain *why*, sparingly, in the file's existing voice.
 - Anything both pages need goes in `base.css` / `ui.js`, not copied.
@@ -351,8 +359,10 @@ MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
   (`@MainActor @Sendable` handlers) or AppKit never calls them — a clean build
   must show no "nearly matches" warnings.
 - **Typing is never rewritten** (prompts are code and commands): the message
-  box (and the Files editor) carry `autocorrect="off" autocapitalize="off"
-  spellcheck="false" writingsuggestions="false"`, and the macOS app registers
+  box (and the Files editor; CodeMirror sets them itself) carry
+  `autocorrect="off" autocapitalize="off" spellcheck="false"
+  writingsuggestions="false"` — the editor also leaves out auto-closing
+  brackets and tags — and the macOS app registers
   `WebAutomatic{SpellingCorrection,QuoteSubstitution,DashSubstitution,
   TextReplacement}Enabled = false` (main.swift) plus `allowsInlinePredictions
   = false` — otherwise WebKit turns `"x" --y` into `“x” —y`. Each layer alone

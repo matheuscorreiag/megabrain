@@ -11,6 +11,7 @@
 import http from 'node:http';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { APP_DIR, HOME, HOSTNAME, config, authorized, fromThisMac, sameOrigin, rejectUpgrade, HttpError, sendJson } from './lib/config.js';
 import { loadChats, handleChatApi, handleChatUpgrade, serveMedia, stopChats, pauseChats } from './lib/chat.js';
 import { handleTerminalApi, handleTerminalUpgrade, terminalInfo, detachTerminals } from './lib/terminal.js';
@@ -26,6 +27,10 @@ const VENDOR = {
   '/vendor/marked.mjs': 'node_modules/marked/lib/marked.esm.js',
   '/vendor/purify.mjs': 'node_modules/dompurify/dist/purify.es.mjs',
 };
+// CodeMirror (the Files editor) is many small modules that import each other
+// by package name. The terminal page's import map points those names here.
+const NPM = /^\/vendor\/npm\/((?:@codemirror\/|@lezer\/|@marijn\/)?[\w.-]+)(\/[\w./-]*)?$/;
+const NPM_PACKAGES = /^(@codemirror\/|@lezer\/|@marijn\/|crelt$|style-mod$|w3c-keyname$)/;
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -49,6 +54,36 @@ async function serveStatic(res, pathname) {
   });
   res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
   res.end(body);
+}
+
+// A package name (or a path in it) resolves like Node would, through the
+// package's "exports", and redirects to the real file so its own relative
+// imports work. The files themselves only change with `npm install`.
+async function serveNpm(req, res, pathname) {
+  const [, pkg, sub = ''] = pathname.match(NPM) || [];
+  if (!pkg || !NPM_PACKAGES.test(pkg)) throw new HttpError(404, 'not found');
+  const dir = path.join(APP_DIR, 'node_modules', pkg);
+  let file = path.join(dir, path.normalize(sub));
+  if (!file.startsWith(dir + path.sep) || !file.endsWith('.js')) {
+    try {
+      file = fileURLToPath(import.meta.resolve(pkg + sub));
+    } catch {
+      throw new HttpError(404, 'not found');
+    }
+    if (!file.startsWith(dir + path.sep)) throw new HttpError(404, 'not found');
+    res.writeHead(302, { location: `/vendor/npm/${pkg}/${path.relative(dir, file)}`, 'cache-control': 'no-cache' });
+    return res.end();
+  }
+  const st = await fsp.stat(file).catch(() => {
+    throw new HttpError(404, 'not found');
+  });
+  const etag = `"${st.size}-${Math.round(st.mtimeMs)}"`;
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, { etag });
+    return res.end();
+  }
+  res.writeHead(200, { 'content-type': MIME['.js'], 'cache-control': 'no-cache', etag });
+  res.end(await fsp.readFile(file));
 }
 
 async function handleApi(req, res, url) {
@@ -92,6 +127,7 @@ const server = http.createServer(async (req, res) => {
       if (!power.on) throw new HttpError(503, 'turned off');
       await serveMedia(res, url);
     }
+    else if (url.pathname.startsWith('/vendor/npm/')) await serveNpm(req, res, url.pathname);
     else await serveStatic(res, url.pathname);
   } catch (err) {
     if (!(err instanceof HttpError)) console.error(req.method, url.pathname, err);

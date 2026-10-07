@@ -98,6 +98,7 @@ function listItem(tab) {
           },
         },
         { label: 'New terminal in this folder', run: () => createTab(dir) },
+        { label: 'New chat in this folder', run: () => chatIn(dir) },
         { label: 'Close terminal', danger: true, run: () => closeTab(t) },
       ]);
     },
@@ -154,6 +155,8 @@ function renderList() {
   const active = tabs.find((t) => t.id === activeId);
   document.title = active ? active.title : 'Terminal';
   setHue(active ? hueOf(active.id) : undefined);
+  $('#chat-here').hidden = !active;
+  $('#chat-here').title = active ? `New chat in ${tildify(active.currentPath || active.cwd)}` : '';
 }
 
 // Pinned tabs (tmux @megabrain_pinned, their place from 1) come first, in the
@@ -235,6 +238,13 @@ async function closeTab(tab) {
 
 $('#new-tab').addEventListener('click', () => createTab());
 $('#empty-new').addEventListener('click', () => createTab());
+
+// A new chat whose agent starts in this folder (the chat page reads ?dir=).
+const chatIn = (dir) => (location.href = `/?dir=${encodeURIComponent(dir)}`);
+$('#chat-here').addEventListener('click', () => {
+  const tab = tabs.find((t) => t.id === activeId);
+  if (tab) chatIn(tab.currentPath || tab.cwd);
+});
 
 // --------------------------------------------------------------- terminal
 
@@ -603,7 +613,7 @@ filesPanel.addEventListener('drop', (e) => {
 // ----------------------------------------------------------------- editor
 
 const editor = $('#editor');
-const editorText = $('#editor-text');
+let code = null; // the code editor (editor.js), made on the first open
 let editingFile = null;
 
 async function openFile(entry) {
@@ -616,13 +626,13 @@ async function openFile(entry) {
     }
     if (!res.ok) throw new Error((await res.json()).error);
     const text = await res.text();
+    code ??= (await import('/terminal/editor.js')).createEditor($('#editor-text'), { onSave: saveFile });
     editingFile = { path: entry.path, original: text };
     $('#editor-name').textContent = tildify(entry.path);
     $('#editor-status').textContent = '';
-    editorText.value = text;
     editor.showModal();
-    editorText.setSelectionRange(0, 0);
-    editorText.scrollTop = 0;
+    code.open(text, entry.path.split('/').pop());
+    if (!touch) code.focus();
   } catch (err) {
     fail(err);
   }
@@ -630,7 +640,7 @@ async function openFile(entry) {
 
 async function saveFile() {
   if (!editingFile) return;
-  const text = editorText.value;
+  const text = code.text;
   $('#editor-status').textContent = 'saving…';
   try {
     await api('PUT', `/api/fs/write?path=${encodeURIComponent(editingFile.path)}`, text);
@@ -644,7 +654,7 @@ async function saveFile() {
 }
 
 function closeEditor() {
-  if (editingFile && editorText.value !== editingFile.original && !confirm('Discard unsaved changes?')) return;
+  if (editingFile && code.text !== editingFile.original && !confirm('Discard unsaved changes?')) return;
   editingFile = null;
   editor.close();
 }
@@ -656,15 +666,13 @@ editor.addEventListener('cancel', (e) => {
   e.preventDefault();
   closeEditor();
 });
-editorText.addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-    e.preventDefault();
-    saveFile();
-  }
-  if (e.key === 'Tab' && !e.shiftKey) {
-    e.preventDefault();
-    editorText.setRangeText('  ', editorText.selectionStart, editorText.selectionEnd, 'end');
-  }
+// Esc is caught before it becomes a "cancel", which the browser only lets a
+// page refuse once per user action: a second Esc would drop unsaved changes.
+// The editor's own Esc (closing find) comes first.
+editor.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  e.preventDefault();
+  closeEditor();
 });
 
 // ------------------------------------------------------------------- boot

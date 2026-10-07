@@ -216,9 +216,11 @@ on the server's Mac.
 ## Terminal (at `/terminal/`)
 
 Same layout as the chat page: tmux-backed terminals listed in the sidebar
-(each with its own accent), a **Files** panel on the right (browse, edit,
-upload, download, rename, move to Trash, type a path into the terminal) and
-**Back to chats** to return to the main view. Terminals keep running when the
+(each with its own accent), a **Files** panel on the right (browse, edit with
+syntax highlighting and find / replace, upload, download, rename, move to
+Trash, type a path into the terminal), **New chat in this folder** (a chat
+whose agent starts in the open terminal's folder) and **Back to chats** to
+return to the main view. Terminals keep running when the
 browser closes and can be opened from several devices at once; `bin/megabrain`
 opens the same ones over SSH (`megabrain`, `megabrain 2`, `megabrain new`). Terminals pin like
 chats: drag them to **Pinned**, ⇧⌘P or the ⋯ menu.
