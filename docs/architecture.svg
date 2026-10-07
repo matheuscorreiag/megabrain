@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1550" width="900" height="1550" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#93a6a7"/>
+    </marker>
+    <style>
+      .band { fill: #101a1b; stroke: #22312f; stroke-width: 1.5; }
+      .card { fill: #152224; stroke: #2c3e3f; stroke-width: 1.5; }
+      .head { font: 600 15px Menlo, 'SF Mono', monospace; letter-spacing: 1.5px; }
+      .note { font: 400 16px -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; fill: #93a6a7; letter-spacing: 0; }
+      .title { font-weight: 650; font-size: 21px; fill: #e6eeee; }
+      .side-title { font-weight: 650; font-size: 19px; fill: #e6eeee; }
+      .text { font-size: 17px; fill: #b9c8c9; }
+      .small { font-size: 16px; fill: #b9c8c9; }
+      .code { font: 500 15px Menlo, 'SF Mono', monospace; fill: #93a6a7; }
+      .code-title { font: 600 17px Menlo, 'SF Mono', monospace; }
+      .wire { stroke: #93a6a7; stroke-width: 2; fill: none; }
+      .wire-label { font: 600 15px Menlo, 'SF Mono', monospace; fill: #c9d6d7; }
+      .wire-note { font: 400 14px Menlo, 'SF Mono', monospace; fill: #7d9192; }
+    </style>
+  </defs>
+
+  <rect width="900" height="1550" fill="#0b1112"/>
+
+  <text x="40" y="58" font-size="32" font-weight="700" fill="#e6eeee">How megabrain works</text>
+  <text x="40" y="90" class="text">The work happens on the Mac. Your other devices only show the screen.</text>
+
+  <!-- 1 · Devices -->
+  <rect class="band" x="40" y="120" width="820" height="170" rx="12"/>
+  <rect x="40" y="120" width="5" height="170" rx="2" fill="#b49cff"/>
+  <text x="64" y="152" class="head" fill="#b49cff">1<tspan dx="12">YOUR DEVICES</tspan><tspan class="note" dx="12">only show the UI</tspan></text>
+  <rect class="card" x="64" y="172" width="250" height="96" rx="9"/>
+  <text x="84" y="210" class="title">Phone</text>
+  <text x="84" y="240" class="text">browser · Home Screen app</text>
+  <rect class="card" x="325" y="172" width="250" height="96" rx="9"/>
+  <text x="345" y="210" class="title">Laptop</text>
+  <text x="345" y="240" class="text">any browser</text>
+  <rect class="card" x="586" y="172" width="250" height="96" rx="9"/>
+  <text x="606" y="210" class="title">Megabrain.app</text>
+  <text x="606" y="240" class="text">macOS app (a web view)</text>
+
+  <line class="wire" x1="322" y1="292" x2="322" y2="358" marker-start="url(#head)" marker-end="url(#head)"/>
+  <text x="342" y="320" class="wire-label">HTTPS pages + WebSocket</text>
+  <text x="342" y="342" class="wire-note">wss://…/ws/chat · /ws/tabs/&lt;id&gt;</text>
+
+  <!-- 2 · Network -->
+  <rect class="band" x="40" y="360" width="820" height="128" rx="12"/>
+  <rect x="40" y="360" width="5" height="128" rx="2" fill="#f2b45a"/>
+  <text x="64" y="392" class="head" fill="#f2b45a">2<tspan dx="12">NETWORK</tspan></text>
+  <text x="64" y="428" class="title">Tailscale<tspan dx="10" class="code-title" fill="#e6eeee">tailscale serve → 127.0.0.1:7680</tspan></text>
+  <text x="64" y="462" class="text">Private: only your tailnet, your login checked. The Mac app on the Mac connects locally.</text>
+
+  <line class="wire" x1="322" y1="490" x2="322" y2="546" marker-start="url(#head)" marker-end="url(#head)"/>
+
+  <!-- 3 · The brain computer -->
+  <rect class="band" x="40" y="548" width="820" height="572" rx="12"/>
+  <rect x="40" y="548" width="5" height="572" rx="2" fill="#45d1df"/>
+  <text x="64" y="580" class="head" fill="#45d1df">3<tspan dx="12">THE BRAIN COMPUTER</tspan><tspan class="note" dx="12">your Mac, kept running by launchd</tspan></text>
+
+  <rect class="card" x="64" y="600" width="516" height="84" rx="9" stroke="#45d1df" stroke-opacity="0.45"/>
+  <text x="84" y="634" class="title">Server<tspan dx="10" class="code-title" fill="#45d1df">server.js</tspan><tspan dx="8" class="small">(Node)</tspan></text>
+  <text x="84" y="664" class="text">Web server + WebSocket hub · serves the pages and /api</text>
+
+  <line class="wire" x1="322" y1="686" x2="322" y2="718" marker-start="url(#head)" marker-end="url(#head)"/>
+  <text x="338" y="707" class="wire-note">/ws/chat</text>
+
+  <rect class="card" x="64" y="720" width="516" height="110" rx="9"/>
+  <text x="84" y="754" class="title">Chat engine<tspan dx="10" class="code-title" fill="#45d1df">lib/chat.js</tspan></text>
+  <text x="84" y="784" class="text">One agent process per chat · queues your messages</text>
+  <text x="84" y="810" class="text">History pages · /clear · broadcast to every device</text>
+
+  <line class="wire" x1="322" y1="832" x2="322" y2="864" marker-start="url(#head)" marker-end="url(#head)"/>
+  <text x="338" y="853" class="wire-note">neutral events</text>
+
+  <rect class="card" x="64" y="866" width="516" height="84" rx="9"/>
+  <text x="84" y="900" class="title">Adapter<tspan dx="10" class="code-title" fill="#45d1df">lib/agents/claude.js</tspan></text>
+  <text x="84" y="930" class="text">Translates Claude Code's stream-json ⇄ neutral events</text>
+
+  <line class="wire" x1="322" y1="952" x2="322" y2="984" marker-start="url(#head)" marker-end="url(#head)"/>
+  <text x="338" y="973" class="wire-note">JSON lines · stdin / stdout</text>
+
+  <rect class="card" x="64" y="986" width="516" height="110" rx="9" stroke="#45d1df" stroke-opacity="0.45"/>
+  <text x="84" y="1020" class="title">Agent<tspan dx="10" class="code-title" fill="#45d1df">claude -p</tspan><tspan dx="8" class="small">(Claude Code)</tspan></text>
+  <text x="84" y="1050" class="text">Reads and edits files, runs commands, uses the VPN</text>
+  <text x="84" y="1076" class="text">and local network — the real work happens here</text>
+
+  <!-- side column -->
+  <line class="wire" x1="582" y1="640" x2="602" y2="640" marker-end="url(#head)"/>
+  <rect class="card" x="604" y="600" width="232" height="140" rx="9"/>
+  <text x="622" y="632" class="side-title">Terminals</text>
+  <text x="622" y="656" class="code">/ws/tabs/&lt;id&gt;</text>
+  <text x="622" y="684" class="small">tmux shells in the</text>
+  <text x="622" y="706" class="small">browser; they outlive</text>
+  <text x="622" y="728" class="small">the page</text>
+
+  <line class="wire" x1="582" y1="790" x2="602" y2="790" marker-end="url(#head)"/>
+  <rect class="card" x="604" y="760" width="232" height="132" rx="9"/>
+  <text x="622" y="792" class="side-title">History on disk</text>
+  <text x="622" y="816" class="code">~/.megabrain/</text>
+  <text x="622" y="844" class="small">one log per chat,</text>
+  <text x="622" y="866" class="small">images, usage limits</text>
+
+  <line class="wire" x1="322" y1="1098" x2="322" y2="1188" marker-start="url(#head)" marker-end="url(#head)"/>
+  <text x="342" y="1144" class="wire-label">HTTPS · your Claude subscription</text>
+  <text x="342" y="1166" class="wire-note">model calls (no API key)</text>
+
+  <!-- 4 · AI provider -->
+  <rect class="band" x="40" y="1190" width="820" height="128" rx="12"/>
+  <rect x="40" y="1190" width="5" height="128" rx="2" fill="#ff8a65"/>
+  <text x="64" y="1222" class="head" fill="#ff8a65">4<tspan dx="12">AI PROVIDER</tspan></text>
+  <text x="64" y="1258" class="title">Anthropic — Claude models (Fable · Opus · Sonnet · Haiku)</text>
+  <text x="64" y="1292" class="text">Thinks and writes the replies; every tool it asks for runs back on the Mac.</text>
+
+  <!-- legend: the chat WebSocket -->
+  <rect x="40" y="1348" width="820" height="170" rx="12" fill="none" stroke="#2c3e3f" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <text x="64" y="1380" class="head" fill="#93a6a7">ON THE CHAT WEBSOCKET</text>
+  <text x="64" y="1414" class="code"><tspan fill="#e6eeee">page → server</tspan><tspan dx="22">open · older · send · interrupt · visibility</tspan></text>
+  <text x="64" y="1442" class="code"><tspan fill="#e6eeee">server → page</tspan><tspan dx="22">chats · history · item · live · status · cleared</tspan></text>
+  <text x="64" y="1476" class="small">history: the chat's latest page · older: the page before it, as you scroll up</text>
+  <text x="64" y="1500" class="small">item: a saved piece of a reply · live: text still streaming</text>
+</svg>
