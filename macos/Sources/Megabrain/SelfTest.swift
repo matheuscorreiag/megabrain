@@ -129,6 +129,23 @@
       await js("document.activeElement?.blur()")
       press("k", 40)
       check("⌘K focuses the message box", await until(1) { await self.text("document.activeElement?.id") == "input" })
+      // …also when the web view doesn't have the window's focus (just opened, or
+      // shown again before a click): the menu delivers ⌘K then, and typing must
+      // still land in the box.
+      await js("document.activeElement?.blur()")
+      NSApp.activate()
+      web.window.makeKeyAndOrderFront(nil)
+      web.window.makeFirstResponder(nil)
+      press("k", 40)
+      await wait(0.3)
+      await type("z")
+      check("⌘K without the page focused: typing lands in the box", await until(1) { await self.text("document.querySelector('#input').value") == "z" }, await text("document.querySelector('#input').value"))
+      await js("(() => { const i = document.querySelector('#input'); i.value = ''; i.dispatchEvent(new Event('input')); i.blur(); })()")
+      web.window.orderOut(nil)
+      web.window.makeFirstResponder(nil)
+      web.show()
+      check("showing the window gives the page the keys", web.window.firstResponder === web.webView)
+      previous?.activate()
       let collapsed = await flag("document.body.classList.contains('sidebar-collapsed')")
       press("b", 11)
       await wait(0.5)
