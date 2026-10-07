@@ -224,6 +224,9 @@ to a generic card.
   and ⇧⌘N/⇧⌘T/⇧⌘W (new window/tab, incognito, reopen tab) and pages can't
   take them; only app windows get them. In the macOS app ⌘W closes (hides) the
   window.
+- Holding ⌘ (Ctrl off macOS) sets `body.show-keys` (ui.js) and shows key
+  hints, styled `.kbd` in base.css: ⌘1–9 on sidebar items, ⌘K on the message
+  box while it isn't focused (`#input-key`; focused, ⌘C / ⌘V would flash it).
 
 ## Security model
 

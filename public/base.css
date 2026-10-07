@@ -500,8 +500,9 @@ body.resizing {
   margin-left: 8px;
 }
 
-/* ⌘1…⌘9 hints, shown while ⌘ (or Ctrl) is held */
-.side-item .kbd {
+/* Key hints (⌘1…⌘9 on sidebar items, ⌘K on the message box), shown while ⌘
+   (or Ctrl) is held */
+.kbd {
   display: none;
   font: 10px/1.7 var(--mono);
   color: var(--muted);

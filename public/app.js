@@ -806,6 +806,7 @@ document.addEventListener(
 $('#new-chat-hint').textContent = appKey('N');
 $('#shortcuts-hint').textContent = `${MOD}/`;
 $('#terminal-hint').textContent = appKey('T');
+$('#input-key').textContent = `${MOD}K`;
 
 // The Shortcuts screen: what each one does and its keys.
 $('#shortcut-list').replaceChildren(

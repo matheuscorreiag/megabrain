@@ -1015,6 +1015,16 @@ button.tool-head:hover {
   color: var(--text);
   opacity: 0.42;
 }
+/* ⌘K, on the send button's line, while ⌘ is held — only when the box isn't
+   already focused (⌘C / ⌘V while typing shouldn't flash it). */
+#input-key {
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin: 0 4px 8px 0;
+}
+body.show-keys #composer:not(:focus-within) #input-key {
+  display: inline-block;
+}
 #recall {
   flex-shrink: 0;
   align-self: flex-end; /* on the send button's line */
