@@ -150,18 +150,39 @@ function onMessage(m) {
       renderHeader();
       break;
 
+    // The open chat's last page; older ones come as it scrolls up.
     case 'history': {
       if (!here) return;
       const buffered = state.opening?.buffer || [];
       state.opening = null;
       thread.reset();
+      thread.numberFrom(m.items, m.turnsBefore || 0);
       for (const item of [...m.items, ...buffered]) thread.add(item);
-      remember([...m.items, ...buffered]);
+      remember([...(m.prompts || []).map((text) => ({ t: 'user', text })), ...m.items, ...buffered]);
       for (const draft of m.drafts) thread.live({ t: 'start', ...draft });
       applyStatus(m.status, m.queue);
       scrollToBottom();
+      setPages(m.items[0]?.id, m.more);
       break;
     }
+
+    case 'older': {
+      if (!here || m.before !== pages.oldest) return; // another chat, or cleared since
+      holdAnchor();
+      thread.prepend(m.items, m.turnsBefore);
+      followAnchor();
+      setPages(m.items[0]?.id ?? pages.oldest, m.more);
+      break;
+    }
+
+    // /clear: the conversation starts over on every device showing it.
+    case 'cleared':
+      if (!here) return;
+      if (state.opening) state.opening.buffer = [];
+      thread.reset();
+      forgetRecent();
+      setPages(null, false);
+      break;
 
     case 'created':
       // Our first message made a new chat: it's the one on screen now.
@@ -260,8 +281,10 @@ function openChat(id) {
   const changed = id !== state.chatId;
   if (changed) forgetRecent();
   state.chatId = id || null;
+  if (state.chatId) state.newDir = null;
   local.set('last', state.chatId);
   thread.reset();
+  setPages(null, false);
   applyStatus('idle', []);
   hidePopovers();
   $('#welcome').hidden = Boolean(state.chatId);
@@ -937,16 +960,67 @@ let atBottom = true;
 messages.addEventListener('scroll', () => {
   atBottom = messages.scrollTop + messages.clientHeight >= messages.scrollHeight - 80;
   $('#jump').hidden = atBottom;
+  holdAnchor();
+  loadOlder();
 });
 function scrollToBottom() {
   messages.scrollTop = messages.scrollHeight;
   atBottom = true;
   $('#jump').hidden = true;
 }
-// Follow new content (streamed text, images loading) while at the bottom.
-new ResizeObserver(() => atBottom && scrollToBottom()).observe($('#thread'));
+
+// Off the bottom, what's in the middle of the screen stays there when the
+// thread changes size above it: an older page arriving, its images loading
+// (browsers' own scroll anchoring does this in Chrome, not always, and not in
+// Safari). Its place in the thread (`at`: its top plus the scroll) only
+// changes when something above it does.
+let anchor = null; // { el, at }
+
+function holdAnchor() {
+  followAnchor(); // first undo what moved the last one, if the observer hasn't yet
+  const box = messages.getBoundingClientRect();
+  const middle = box.top + box.height / 2;
+  const list = $('#thread').querySelectorAll(':scope > .note, .turn-head, .user-msg, .assistant > *');
+  // In document order, so top to bottom: the first one starting below the middle.
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid].getBoundingClientRect().top >= middle) hi = mid;
+    else lo = mid + 1;
+  }
+  const el = list[lo];
+  anchor = el ? { el, at: el.getBoundingClientRect().top + messages.scrollTop } : null;
+}
+
+function followAnchor() {
+  if (atBottom || !anchor?.el.isConnected) return;
+  const moved = anchor.el.getBoundingClientRect().top + messages.scrollTop - anchor.at;
+  if (Math.abs(moved) < 1) return;
+  anchor.at += moved;
+  messages.scrollTop += moved;
+}
+
+new ResizeObserver(() => (atBottom ? scrollToBottom() : followAnchor())).observe($('#thread'));
 new ResizeObserver(() => atBottom && scrollToBottom()).observe($('#loader-slot'));
 $('#jump').addEventListener('click', scrollToBottom);
+
+// History pages (lib/chat.js historyPage): the oldest item shown, whether
+// there's more above it, and whether it was asked for.
+const pages = { oldest: null, more: false, loading: false };
+
+function setPages(oldest, more) {
+  Object.assign(pages, { oldest, more: Boolean(more), loading: false });
+  $('#older').hidden = !pages.more;
+  followAnchor();
+  loadOlder(); // a short page doesn't scroll: fill the screen
+}
+
+// Asked for a screen ahead, so it's usually there before the top is.
+function loadOlder() {
+  if (!pages.more || pages.loading || state.opening || messages.scrollTop > messages.clientHeight) return;
+  pages.loading = wsSend({ op: 'older', chatId: state.chatId, before: pages.oldest });
+}
 
 // -------------------------------------------------------------- composer
 

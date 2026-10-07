@@ -163,6 +163,7 @@ export class Thread {
 
   reset() {
     this.el.replaceChildren();
+    this.el.style.counterReset = '';
     this.seen = new Set();
     this.tools = new Map(); // tool_use id -> card
     this.drafts = new Map(); // `${msg}:${index}` -> { el, kind, text, parent }
@@ -212,6 +213,33 @@ export class Thread {
         this.el.append(h('div', { class: `note ${item.level || ''}`, textContent: item.text }));
         break;
     }
+  }
+
+  // History comes a page at a time (lib/chat.js historyPage), newest first.
+  // turnsBefore: prompts before the page, so the turns keep their numbers.
+  numberFrom(items, turnsBefore) {
+    // A page that starts mid-reply opens on that turn's tail, which counts
+    // as the turn it belongs to.
+    const mid = items[0] && items[0].t !== 'user';
+    this.el.style.counterReset = `turn ${Math.max(0, turnsBefore - (mid ? 1 : 0))}`;
+  }
+
+  // An older page goes above what's shown.
+  prepend(items, turnsBefore) {
+    const older = new Thread(document.createElement('div'));
+    for (const item of items) older.add(item);
+    // The tail of a turn this page cut off joins the rest of that turn.
+    const tail = this.el.firstElementChild;
+    if (older.turn && tail?.matches('.turn') && !tail.querySelector(':scope > .turn-head')) {
+      older.turn.assistant.append(...tail.querySelector(':scope > .assistant').childNodes);
+      tail.remove();
+      if (this.turn?.el === tail) this.turn = older.turn; // still running: replies go on there
+    }
+    this.el.prepend(...older.el.childNodes);
+    for (const id of older.seen) this.seen.add(id);
+    for (const key of older.finals) this.finals.add(key);
+    for (const [id, card] of older.tools) this.tools.set(id, card);
+    this.numberFrom(items, turnsBefore);
   }
 
   addBlock({ msg, index, block, parent }) {

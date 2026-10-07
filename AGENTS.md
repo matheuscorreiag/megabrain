@@ -89,6 +89,20 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   `chat.js` turns those into **items** appended to
   `~/.megabrain/chats/<id>/events.jsonl` and broadcast to every socket watching
   the chat. Live-only events (drafts) are not persisted.
+- **History is paged** (`historyPage()`): `open` answers with the last ~100
+  items (`more`, `turnsBefore` — prompts before the page, so turns keep their
+  numbers — and the last `prompts` for ↑); the page asks `{ op: 'older',
+  before: <oldest item id> }` as it scrolls near the top. A page starts at a
+  prompt or mid-reply at a top-level block while no tool call waits for its
+  result (`pageStarts()`), so a result never lands in a page without its card;
+  `Thread.prepend()` (render.js) joins a cut turn's tail to its start. Long
+  agent turns are hundreds of items, so pages can't be whole turns.
+- **`/clear`** is handled by `chat.js`, for every adapter: the message isn't
+  sent to the agent. The process is retired, `sessionId` / context dropped
+  (the next message starts a new session, no `--resume`), `events.jsonl` moves
+  to `events-<ts>.jsonl` in the chat's folder (kept, not shown) and watchers
+  get `{ op: 'cleared' }` plus a "Conversation cleared" note. Queued behind a
+  running turn, it waits its turn like a message.
 - Messages sent while a turn runs go to an in-memory **queue**; one socket's
   messages are processed in order (so "stop" can't overtake "send").
 - Per chat meta (`meta.json`): title, hue, sessionId, model, modelLabel,
@@ -213,9 +227,16 @@ to a generic card.
   rename (⇧⌘E) use it; older `confirm()` calls (terminal page, Turn off) can
   move to it.
 - Recent messages (↑ / ↓ / Tab in an empty message box, app.js `remember` /
-  `suggest`) come from the open chat's `user` items — history plus live
-  items — so nothing extra is stored; the suggestion is the textarea's
-  placeholder, never its value.
+  `suggest`) come from the open chat's `user` items — the `prompts` sent with
+  its last page plus live items — so nothing extra is stored; the suggestion
+  is the textarea's placeholder, never its value.
+- **Scroll position** (app.js): at the bottom, the thread follows new content.
+  Elsewhere, the first item starting below the middle of the screen is the
+  anchor (`holdAnchor()` on every scroll) and `followAnchor()` undoes any move
+  of it — on an older page, images loading above, `#older` hiding. Native
+  scroll anchoring is off (`overflow-anchor: none` on `#messages`): Safari
+  doesn't have it and in Chrome it fought ours (double corrections) and still
+  missed lazy images loading just above the screen.
 - The sidebar's width is `--side-w` (base.css). Dragging its right edge
   (`setupResize()` in ui.js, desktop only) overrides it on `<html>`, clamped to
   200–520px, and saves it in localStorage `ui:sidebarWidth` for both pages.
@@ -370,7 +391,8 @@ MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
 
 ## Data and persistence
 
-- `~/.megabrain/chats/<id>/{meta.json,events.jsonl}`, `~/.megabrain/media/`,
+- `~/.megabrain/chats/<id>/{meta.json,events.jsonl}` (plus `events-<ts>.jsonl`,
+  what each `/clear` set aside), `~/.megabrain/media/`,
   `~/.megabrain/limits.json`, `~/.megabrain/off` (present while turned off). The
   agent's own transcripts (used by `--resume`) live in `~/.claude/`.
 - Survives connection drops and restarts. Lost on a hard shutdown mid-turn:

@@ -29,6 +29,9 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► megab
   server or the Mac.
 - A message sent while the agent is still working is **queued** (and can be
   removed). **Stop**: the ■ button or Esc.
+- A chat opens on its latest messages; older ones load as you scroll up.
+  **`/clear`** starts the conversation over, with any agent: a new session,
+  and an empty thread on every device (the old messages stay on disk).
 
 ## In the UI
 

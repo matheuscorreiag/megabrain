@@ -32,6 +32,7 @@ body.sidebar-collapsed #shortcuts-view {
 #messages {
   overflow-y: auto;
   overscroll-behavior: contain;
+  overflow-anchor: none; /* app.js keeps the reader's place itself (followAnchor) */
   padding: calc(28px + env(safe-area-inset-top)) 16px 28px;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
