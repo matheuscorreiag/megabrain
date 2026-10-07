@@ -798,60 +798,123 @@ button.tool-head:hover {
   background: var(--accent);
   animation: node-pulse 1.3s ease-in-out infinite;
 }
+/* The brain (loader.js): a faint outline, sparks running along its grooves
+   and a pulsing core. Calm while thinking, quicker while writing, and a ping
+   from the core while a tool runs. Sized not to make the row taller. */
 .loader-mark {
   display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 12px;
+  width: 22px;
+  height: 22px;
+  margin: -4px 0;
+  flex-shrink: 0;
+  color: var(--accent);
+  --beat: 1.8s;
 }
-.loader-mark i {
-  width: 3px;
-  height: 12px;
-  border-radius: 1px;
-  background: var(--accent);
-  transform-origin: bottom;
-  animation: loader-scan 1.2s ease-in-out infinite;
+.loader[data-phase='writing'] .loader-mark {
+  --beat: 1s;
 }
-.loader-mark i:nth-child(2) {
-  animation-delay: 0.18s;
+.loader[data-phase='tool'] .loader-mark {
+  --beat: 1.3s;
 }
-.loader-mark i:nth-child(3) {
-  animation-delay: 0.36s;
+.loader-brain {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
-.loader[data-phase='writing'] .loader-mark i {
-  animation-name: loader-eq;
-  animation-duration: 0.7s;
+.loader-brain path,
+.loader-brain circle {
+  transform-box: fill-box;
+  transform-origin: center;
 }
-.loader[data-phase='tool'] .loader-mark i {
-  animation-duration: 0.6s;
+.loader-brain .lobe {
+  fill: color-mix(in oklab, currentColor 14%, transparent);
+  stroke: currentColor;
+  stroke-width: 30;
+  stroke-linejoin: round;
+  opacity: 0.75;
+  animation: brain-breathe var(--beat) ease-in-out infinite;
+}
+.loader-brain .groove,
+.loader-brain .spark {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 34;
+  stroke-linecap: round;
+}
+.loader-brain .groove {
+  opacity: 0.3;
+}
+.loader-brain .spark {
+  stroke-dasharray: 34 100;
+  stroke-dashoffset: 134;
+  filter: drop-shadow(0 0 30px currentColor);
+  animation: brain-spark calc(var(--beat) * 1.5) ease-in-out infinite;
+  animation-delay: calc(var(--i) * var(--beat) * -0.25);
+}
+.loader-brain .core {
+  fill: currentColor;
+  filter: drop-shadow(0 0 40px currentColor);
+  animation: brain-core var(--beat) ease-in-out infinite;
+}
+.loader-brain .ping {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 20;
+  opacity: 0;
+}
+.loader[data-phase='tool'] .loader-brain .ping {
+  animation: brain-ping var(--beat) ease-out infinite;
+}
+@keyframes brain-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes brain-spark {
+  0% {
+    stroke-dashoffset: 134;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes brain-core {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.75;
+  }
+  45% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+@keyframes brain-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
 }
 .loader-time {
   font: 10.5px/1 var(--mono);
   font-variant-numeric: tabular-nums;
   color: var(--faint);
-}
-@keyframes loader-scan {
-  0%,
-  100% {
-    transform: scaleY(0.25);
-    opacity: 0.35;
-  }
-  35% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-@keyframes loader-eq {
-  0%,
-  100% {
-    transform: scaleY(0.3);
-  }
-  25% {
-    transform: scaleY(1);
-  }
-  60% {
-    transform: scaleY(0.55);
-  }
 }
 
 /* ------------------------------------------------------- composer dock */
@@ -1683,7 +1746,7 @@ body[data-view='shortcuts'] #jump {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loader-mark i,
+  .loader-brain *,
   .loader::after,
   .assistant > .tool::before,
   .tool-state::after,
