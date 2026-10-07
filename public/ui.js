@@ -208,7 +208,7 @@ export function setupSidebar(key) {
   const local = storage('ui');
   if (local.get(key, false)) document.body.classList.add('sidebar-collapsed');
   setupResize(local);
-  setupSettings();
+  setupShare();
   const setDrawer = (open) => document.body.classList.toggle('sidebar-open', open);
   $('#scrim').addEventListener('click', () => setDrawer(false));
   return {
@@ -260,6 +260,143 @@ function setupResize(local) {
     apply();
     local.set('sidebarWidth', null);
   });
+}
+
+// ---------------------------------------------------------------- pinning
+
+// The Pinned section, above the page's own list (`list`): pinned items live
+// there, numbered first, and stay put while the list scrolls. Drag an item
+// into it to pin it where it's dropped, between pinned ones to reorder, or
+// back down to the list to unpin it. A mouse drags at once; a finger holds
+// still first (HOLD_MS), so a swipe still scrolls. onDrop(id, index) gets the
+// item's new place among the pinned ones, or null to unpin; the page renders
+// items into `list` / the returned `nav` (data-id on each) and holds its
+// re-renders while `dragging`, catching up in onEnd().
+const HOLD_MS = 450;
+
+export function setupPinning({ list, onDrop, onEnd }) {
+  const count = h('span', { class: 'count' });
+  const nav = h('nav', { class: 'side-list pinned-list', 'aria-label': 'Pinned' });
+  const section = h('div', { class: 'side-section', hidden: true }, h('div', { class: 'side-label label' }, h('span', { textContent: 'Pinned' }), count), nav);
+  const label = list.previousElementSibling; // the list's own label
+  label.before(section);
+  const sidebar = $('#sidebar');
+  let drag = null; // { el, id, pointerId, touch, x, y, dx, dy, timer, started, ghost, drop }
+
+  const pinnedItems = () => [...nav.children].filter((el) => el.classList.contains('side-item') && el !== drag?.el);
+
+  sidebar.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('.side-item');
+    if (drag || e.button !== 0 || !el?.dataset.id || e.target.closest('.more, input') || !(nav.contains(el) || list.contains(el))) return;
+    const r = el.getBoundingClientRect();
+    drag = { el, id: el.dataset.id, pointerId: e.pointerId, touch: e.pointerType === 'touch', x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top };
+    if (drag.touch) drag.timer = setTimeout(start, HOLD_MS);
+  });
+
+  function start() {
+    clearTimeout(drag.timer);
+    drag.started = true;
+    hidePopovers();
+    const { el } = drag;
+    const r = el.getBoundingClientRect();
+    drag.ghost = el.cloneNode(true);
+    drag.ghost.classList.add('drag-ghost');
+    drag.ghost.style.width = `${r.width}px`;
+    drag.ghost.style.transform = `translate(${r.left}px, ${r.top}px)`;
+    document.body.append(drag.ghost);
+    el.classList.add('dragging');
+    if (!drag.touch) el.setPointerCapture?.(drag.pointerId); // keep the moves when the pointer leaves the sidebar (xterm)
+    sidebar.style.setProperty('--drag-accent', el.style.getPropertyValue('--item-accent'));
+    document.body.classList.add('pin-dragging');
+    section.hidden = false;
+    navigator.vibrate?.(8);
+  }
+
+  // Where it would land: { index } among the pinned items, { unpin }, or null.
+  function dropAt(x, y) {
+    const at = document.elementFromPoint(x, y);
+    if (section.contains(at)) {
+      const items = pinnedItems();
+      const i = items.findIndex((item) => {
+        const r = item.getBoundingClientRect();
+        return y < r.top + r.height / 2;
+      });
+      return { index: i < 0 ? items.length : i };
+    }
+    if (nav.contains(drag.el) && (list.contains(at) || label.contains(at))) return { unpin: true };
+    return null;
+  }
+
+  function show(drop) {
+    for (const el of sidebar.querySelectorAll('.drop-before, .drop-after')) el.classList.remove('drop-before', 'drop-after');
+    section.classList.toggle('over', Boolean(drop && !drop.unpin));
+    list.classList.toggle('drop-target', Boolean(drop?.unpin));
+    if (drop?.index == null) return;
+    const items = pinnedItems();
+    if (items[drop.index]) items[drop.index].classList.add('drop-before');
+    else items.at(-1)?.classList.add('drop-after');
+  }
+
+  window.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const moved = Math.hypot(e.clientX - drag.x, e.clientY - drag.y);
+    if (!drag.started) {
+      if (drag.touch && moved > 8) end(false); // a swipe: let it scroll
+      else if (!drag.touch && moved > 5) start();
+      if (!drag?.started) return;
+    }
+    e.preventDefault();
+    drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px)`;
+    drag.drop = dropAt(e.clientX, e.clientY);
+    show(drag.drop);
+  });
+  // Once a finger's drag has started, the page must not scroll under it.
+  window.addEventListener('touchmove', (e) => drag?.started && e.cancelable && e.preventDefault(), { passive: false });
+  window.addEventListener('pointerup', (e) => e.pointerId === drag?.pointerId && end(true));
+  window.addEventListener('pointercancel', (e) => e.pointerId === drag?.pointerId && end(false));
+  window.addEventListener('blur', () => drag && end(false));
+  sidebar.addEventListener('contextmenu', (e) => drag?.touch && e.preventDefault()); // a held finger isn't a right-click
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (!drag?.started || e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation(); // not "stop the agent"
+      end(false);
+    },
+    true,
+  );
+
+  function end(commit) {
+    const { el, id, started, ghost, drop, timer } = drag;
+    clearTimeout(timer);
+    drag = null;
+    if (!started) return;
+    ghost.remove();
+    el.classList.remove('dragging');
+    show(null);
+    document.body.classList.remove('pin-dragging');
+    // The click that ends a drag isn't a click on the item.
+    const swallow = (e) => (e.stopPropagation(), e.preventDefault());
+    window.addEventListener('click', swallow, true);
+    setTimeout(() => window.removeEventListener('click', swallow, true));
+    if (commit && drop) onDrop(id, drop.unpin ? null : drop.index);
+    onEnd();
+  }
+
+  return {
+    nav,
+    get dragging() {
+      return Boolean(drag?.started);
+    },
+    // After each render: the section shows when something is pinned (and as
+    // a drop zone while dragging).
+    update(pinned) {
+      count.textContent = pinned ? indexLabel(pinned - 1) : '';
+      section.classList.toggle('empty', !pinned);
+      section.hidden = !pinned && !drag?.started;
+    },
+  };
 }
 
 // ----------------------------------------------------------------- dialogs
@@ -325,29 +462,29 @@ export function ask({ title, text, value, confirm = 'OK', danger = false }) {
   });
 }
 
-// The gear next to the status dot: for now, how to open the panel on another
+// The share button next to the status dot: how to open the panel on another
 // device — the `tailscale serve` address (lib/network.js). The server only
 // listens on localhost, so it's that or nothing; a LAN IP won't answer.
-const GEAR_ICON =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>';
+const SHARE_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" /></svg>';
 
-function setupSettings() {
+function setupShare() {
   const button = h('button', {
-    id: 'open-settings',
+    id: 'open-share',
     class: 'icon-btn panel-btn',
     type: 'button',
-    title: 'Settings',
-    'aria-label': 'Settings',
+    title: 'Open on another device',
+    'aria-label': 'Open on another device',
     'data-popover-anchor': '',
-    innerHTML: GEAR_ICON,
+    innerHTML: SHARE_ICON,
   });
-  const panel = h('div', { id: 'settings-panel', 'data-popover': '', hidden: true });
+  const panel = h('div', { id: 'share-panel', 'data-popover': '', hidden: true });
   $('#conn').before(button);
   document.body.append(panel);
   button.addEventListener('click', async () => {
     if (!panel.hidden) return hidePopovers();
     hidePopovers();
-    panel.replaceChildren(h('h2', { textContent: 'Settings' }), h('p', { textContent: 'Looking up the network…' }));
+    panel.replaceChildren(h('h2', { textContent: 'Share' }), h('p', { textContent: 'Looking up the network…' }));
     panel.hidden = false;
     place(panel, button);
     let net;
@@ -357,7 +494,7 @@ function setupSettings() {
       net = { error: err.message };
     }
     if (panel.hidden) return;
-    panel.replaceChildren(h('h2', { textContent: 'Settings' }), ...networkSection(net));
+    panel.replaceChildren(h('h2', { textContent: 'Share' }), ...networkSection(net));
     place(panel, button);
   });
 }

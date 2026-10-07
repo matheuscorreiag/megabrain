@@ -5,11 +5,11 @@
 import { Terminal } from '/vendor/xterm.mjs';
 import { FitAddon } from '/vendor/addon-fit.mjs';
 import { WebLinksAddon } from '/vendor/addon-web-links.mjs';
-import { $, h, touch, narrow, isMac, appKey, isAppKey, api, storage, toast, fail, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
+import { $, h, touch, narrow, isMac, appKey, isAppKey, api, storage, toast, fail, showMenu, editInline, setupSidebar, setupPinning, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
 
 const local = storage('terminal'); // active tab, last folder, panels
 let config = { root: '/', workdir: '/', home: '/', hostname: '' };
-let tabs = [];
+let tabs = []; // pinned first, then oldest first: ⌘1…⌘9 follow this order
 let activeId = local.get('active', null);
 let editing = false; // a name is being renamed inline: hold list re-renders
 const views = new Map(); // tab id -> { el, term, fit, ws, status, retries, timer, gone }
@@ -87,6 +87,7 @@ function listItem(tab) {
       const t = current();
       const dir = t.currentPath || t.cwd;
       showMenu(more, [
+        { label: isPinned(t) ? 'Unpin' : 'Pin', run: () => togglePin(t) },
         { label: 'Rename', run: rename },
         t.renamed && { label: 'Back to automatic title', run: () => setTabTitle(t, '') },
         {
@@ -105,6 +106,7 @@ function listItem(tab) {
     'div',
     {
       class: 'side-item',
+      dataset: { id: tab.id },
       role: 'button',
       tabIndex: 0,
       onclick: () => activate(tab.id),
@@ -122,7 +124,7 @@ function listItem(tab) {
 }
 
 function renderList() {
-  if (editing) return;
+  if (editing || pinning.dragging) return;
   const nav = $('#tab-list');
   const ids = new Set(tabs.map((t) => t.id));
   for (const [id, item] of listItems) {
@@ -143,14 +145,36 @@ function renderList() {
     item.sub.textContent = tab.clients > 1 ? `${path} · ${tab.clients} devices` : path;
     item.kbd.textContent = i < 9 ? `${TMOD}${i + 1}` : '';
     item.kbd.hidden = i >= 9;
-    nav.append(item.el);
+    (isPinned(tab) ? pinning.nav : nav).append(item.el);
   });
-  $('#tab-count').textContent = tabs.length ? indexLabel(tabs.length - 1) : '';
+  const pinned = tabs.filter(isPinned).length;
+  pinning.update(pinned);
+  $('#tab-count').textContent = tabs.length > pinned ? indexLabel(tabs.length - pinned - 1) : '';
   $('#empty').hidden = tabs.length > 0;
   const active = tabs.find((t) => t.id === activeId);
   document.title = active ? active.title : 'Terminal';
   setHue(active ? hueOf(active.id) : undefined);
 }
+
+// Pinned tabs (tmux @hub_pinned, their place from 1) come first, in the
+// server's order — mirrored here so a drop shows at once.
+const isPinned = (t) => t.pinned != null;
+const byPlace = (a, b) => (a.pinned ?? Infinity) - (b.pinned ?? Infinity) || a.created - b.created;
+
+// index: its place among the pinned tabs; null unpins it.
+async function movePin(id, index) {
+  const before = tabs.filter(isPinned).map((t) => t.id);
+  const ids = before.filter((x) => x !== id);
+  if (index != null) ids.splice(index, 0, id);
+  if (ids.join() === before.join()) return;
+  tabs = tabs.map((t) => ({ ...t, pinned: ids.indexOf(t.id) + 1 || undefined })).sort(byPlace);
+  renderList();
+  await api('PUT', '/api/tabs/pinned', { ids }).catch(fail);
+  await refreshTabs();
+}
+const togglePin = (tab) => movePin(tab.id, isPinned(tab) ? null : tabs.filter(isPinned).length);
+
+const pinning = setupPinning({ list: $('#tab-list'), onDrop: movePin, onEnd: renderList });
 
 // ------------------------------------------------------------------- tabs
 
@@ -347,6 +371,15 @@ const SHORTCUTS = [
   { match: (e) => tmod(e) && e.code === 'KeyB', run: () => sidebar.toggle() },
   { match: (e) => tmod(e) && e.code === 'KeyE', run: () => setFiles(!document.body.classList.contains('files-open')) },
   { match: (e) => isAppKey(e, 'T'), run: () => (location.href = '/') },
+  // ⇧⌘P (Ctrl+Shift+P): pin / unpin the open terminal, like on the chat page.
+  {
+    match: (e) => tmod(e) && e.shiftKey && e.code === 'KeyP',
+    run: () => {
+      const tab = tabs.find((t) => t.id === activeId);
+      if (!tab) return false;
+      togglePin(tab);
+    },
+  },
 ];
 document.addEventListener(
   'keydown',

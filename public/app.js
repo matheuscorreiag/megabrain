@@ -5,7 +5,7 @@
 
 import { Thread } from '/render.js';
 import { createLoader } from '/loader.js';
-import { $, h, touch, narrow, isMac, MOD, standalone, native, appKey, isAppKey, ask, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
+import { $, h, touch, narrow, isMac, MOD, standalone, native, appKey, isAppKey, ask, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setupPinning, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
 const local = storage('chat'); // last chat, unsent drafts, settings for new chats
@@ -15,7 +15,7 @@ const input = $('#input');
 const messages = $('#messages');
 
 const state = {
-  chats: [], // newest first, stable: ⌘1…⌘9 follow this order
+  chats: [], // pinned first, then newest first, stable: ⌘1…⌘9 follow this order
   view: 'chat', // chat | shortcuts
   chatId: null, // null = a new chat, created by its first message
   nextHue: null, // accent the next new chat will get
@@ -311,6 +311,28 @@ async function renameWithDialog(chat) {
   if (title && title !== chat.title) await renameChat(chat.id, title).catch(fail);
 }
 
+// Pinned chats (meta.pinned, their place from 1) come first in the list, in
+// the server's order — mirrored here so a drop shows at once.
+const isPinned = (c) => c.pinned != null;
+const byPlace = (a, b) => (a.pinned ?? Infinity) - (b.pinned ?? Infinity) || b.created - a.created;
+
+// index: its place among the pinned chats; null unpins it.
+function movePin(id, index) {
+  const before = state.chats.filter(isPinned).map((c) => c.id);
+  const ids = before.filter((x) => x !== id);
+  if (index != null) ids.splice(index, 0, id);
+  if (ids.join() === before.join()) return;
+  state.chats = state.chats.map((c) => ({ ...c, pinned: ids.indexOf(c.id) + 1 || undefined })).sort(byPlace);
+  renderList();
+  // The server broadcasts the new list; if it refused, put the old one back.
+  api('PUT', '/api/chats/pinned', { ids }).catch(async (err) => {
+    fail(err);
+    state.chats = await api('GET', '/api/chats').catch(() => state.chats);
+    renderList();
+  });
+}
+const togglePin = (chat) => movePin(chat.id, isPinned(chat) ? null : state.chats.filter(isPinned).length);
+
 // Items are kept and updated in place (keyed by id): rebuilding them would
 // break double-click-to-rename and lose focus while the list refreshes.
 const listItems = new Map(); // chat id -> { el, avatar, name, sub, kbd }
@@ -328,9 +350,11 @@ function listItem(c) {
     'aria-label': 'Chat options',
     onclick: (e) => {
       e.stopPropagation();
+      const chat = state.chats.find((x) => x.id === c.id) || c;
       showMenu(more, [
+        { label: isPinned(chat) ? 'Unpin' : 'Pin', run: () => togglePin(chat) },
         { label: 'Rename', run: rename },
-        { label: 'Delete', danger: true, run: () => deleteChat(state.chats.find((x) => x.id === c.id) || c) },
+        { label: 'Delete', danger: true, run: () => deleteChat(chat) },
       ]);
     },
   });
@@ -338,6 +362,7 @@ function listItem(c) {
     'div',
     {
       class: 'side-item',
+      dataset: { id: c.id },
       role: 'button',
       tabIndex: 0,
       onclick: () => go(c.id),
@@ -355,7 +380,7 @@ function listItem(c) {
 }
 
 function renderList() {
-  if (state.editing) return; // would clobber the rename field
+  if (state.editing || pinning.dragging) return; // would clobber the rename field / the drag
   const nav = $('#chat-list');
   const ids = new Set(state.chats.map((c) => c.id));
   for (const [id, item] of listItems) {
@@ -381,14 +406,18 @@ function renderList() {
     item.el.classList.toggle('unread', c.unread && !busy);
     item.kbd.textContent = i < 9 ? `${MOD}${i + 1}` : '';
     item.kbd.hidden = i >= 9;
-    nav.append(item.el); // moves existing nodes into order
+    (isPinned(c) ? pinning.nav : nav).append(item.el); // moves existing nodes into order
   });
-  $('#chat-count').textContent = state.chats.length ? indexLabel(state.chats.length - 1) : '';
+  const pinned = state.chats.filter(isPinned).length;
+  pinning.update(pinned);
+  $('#chat-count').textContent = state.chats.length > pinned ? indexLabel(state.chats.length - pinned - 1) : '';
   let empty = nav.querySelector('.side-list-empty');
   if (!state.chats.length && !empty) nav.append((empty = h('div', { class: 'side-list-empty', textContent: 'No chats yet.' })));
   if (state.chats.length) empty?.remove();
   renderUnread();
 }
+
+const pinning = setupPinning({ list: $('#chat-list'), onDrop: movePin, onEnd: renderList });
 
 // ---------------------------------------------------------------- unread
 
@@ -733,6 +762,14 @@ const SHORTCUTS = [
     note: 'Or double-click it in the sidebar',
     match: (e) => shiftMod(e) && e.code === 'KeyE',
     run: () => (current() ? renameWithDialog(current()) : false),
+  },
+  {
+    id: 'pin',
+    keys: [isMac ? '⇧⌘P' : 'Ctrl+Shift+P'],
+    label: 'Pin / unpin this chat',
+    note: 'Or drag it to Pinned in the sidebar, and back down to unpin',
+    match: (e) => shiftMod(e) && e.code === 'KeyP',
+    run: () => (current() ? togglePin(current()) : false),
   },
   {
     id: 'delete',

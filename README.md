@@ -37,6 +37,10 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   **color**: the accent at a fixed OKLCH lightness/chroma, and the whole page
   faintly tinted with the same hue, so any of them reads well on the dark UI.
   **Rename**: double-click a name in the sidebar or use its ⋯ menu.
+  **Pin**: drag a chat up to the **Pinned** section at the top of the sidebar
+  (or ⇧⌘P, or its ⋯ menu); pinned chats stay there, in the order you drop
+  them, numbered first. Drag one back down to unpin it. On a phone, hold a
+  chat for a moment, then drag. Pins are shared by every device.
   **Width**: drag the sidebar's right edge (double-click it for the default);
   both pages share it.
 - **Status line under the message box** — the **folder the chat's agent is
@@ -64,7 +68,7 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   terminals stay open in tmux. It stays off across restarts and logins until
   turned on. The server process keeps running while off (idle), so the button
   can turn it back on.
-- **Settings** (the gear next to the status dot) — the address to open the
+- **Share** (the button next to the status dot) — the address to open the
   panel on another device (Chrome on Windows, a phone…), with Copy: the
   `tailscale serve` URL, plus this Mac's Tailscale name and IPs. The server
   only answers through that HTTPS name, never on a LAN IP; if it isn't shared
@@ -80,6 +84,7 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► term-
   | ⌘J | open the latest reply (the notice's chat, or the newest unread) |
   | ⌘K | go to the message box |
   | ⇧⌘E | rename this chat (or double-click it in the sidebar) |
+  | ⇧⌘P | pin / unpin this chat (or drag it to / from Pinned) |
   | ⇧⌘D | delete this chat (asks first) |
   | ⌘T (app) / ⇧⌘T (browser) | open the terminal (the same keys come back) |
   | ⌘/ | Shortcuts screen |
@@ -215,7 +220,8 @@ Same layout as the chat page: tmux-backed terminals listed in the sidebar
 upload, download, rename, move to Trash, type a path into the terminal) and
 **Back to chats** to return to the main view. Terminals keep running when the
 browser closes and can be opened from several devices at once; `bin/hub`
-opens the same ones over SSH (`hub`, `hub 2`, `hub new`).
+opens the same ones over SSH (`hub`, `hub 2`, `hub new`). Terminals pin like
+chats: drag them to **Pinned**, ⇧⌘P or the ⋯ menu.
 
 | Keys | Action |
 | --- | --- |
@@ -223,6 +229,7 @@ opens the same ones over SSH (`hub`, `hub 2`, `hub new`).
 | ⌘N (app) / ⇧⌘N (browser) | new terminal (in the folder open in Files) |
 | ⌘B | show / hide the sidebar |
 | ⌘E | show / hide Files |
+| ⇧⌘P | pin / unpin this terminal |
 | ⌘T (app) / ⇧⌘T (browser) | back to the chats |
 
 Off macOS they use Ctrl+Shift, since plain Ctrl+B / Ctrl+E / Ctrl+N belong to

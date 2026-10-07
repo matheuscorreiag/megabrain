@@ -101,7 +101,7 @@
       check("page knows it runs in the app (⌘N hint)", await text("document.querySelector('#new-chat-hint')?.textContent") == "⌘N")
       let firstChat = await text("location.hash.slice(1)")
       await snapshot("window")
-      check("window title is fixed, not the chat's", web.window.title == (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String) && web.window.title != web.webView.title, web.window.title)
+      check("no title in the bar (the app's name only for the Window menu)", web.window.titleVisibility == .hidden && web.window.title == (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String) && web.window.title != web.webView.title, web.window.title)
       check("status line shows the agent's folder", await until(3) { !(await self.text("document.querySelector('#chat-dir')?.textContent || ''")).isEmpty }, await text("document.querySelector('#chat-dir')?.textContent || ''"))
 
       // Typing isn't rewritten: real keystrokes into the message box. Text input
@@ -156,7 +156,7 @@
       _ = await until(3) { await self.text("location.hash.slice(1)") == first }
       await wait(0.8)
       let escape = "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))"
-      let title = await text("(document.querySelector('#chat-list .active .name') || {}).textContent || ''")
+      let title = await text("(document.querySelector('#sidebar .side-item.active .name') || {}).textContent || ''")
       press("e", 14, [.command, .shift])
       check("⇧⌘E opens the rename dialog with the name", await until(2) { await self.text("document.querySelector('.ask-input')?.value ?? '-'") == title && !title.isEmpty }, title)
       await js(escape)
@@ -173,6 +173,15 @@
       if let item = fileMenu?.item(withTitle: "Delete Chat…"), let index = fileMenu?.index(of: item) { fileMenu?.performActionForItem(at: index) }
       check("File ▸ Delete Chat… asks too", await until(2) { await self.flag("!!document.querySelector('.ask-ok.danger')") })
       await js(escape)
+
+      // Pin / unpin without the mouse: the open chat moves to Pinned (or out of
+      // it) and back.
+      let pinned = "!!document.querySelector('.pinned-list .side-item.active')"
+      let wasPinned = await flag(pinned)
+      press("p", 35, [.command, .shift])
+      check("⇧⌘P pins / unpins the open chat", await until(2) { await self.flag(pinned) != wasPinned })
+      press("p", 35, [.command, .shift])
+      check("…and back", await until(2) { await self.flag(pinned) == wasPinned })
 
       // The menu path on its own: what a shortcut does when the page isn't focused.
       let before = await flag("document.body.classList.contains('sidebar-collapsed')")

@@ -42,8 +42,10 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
     window.delegate = self
     window.center()
     window.setFrameAutosaveName("Main")
-    // A fixed title (the app's name): the open chat is in the status line.
+    // No title in the bar (the open chat is in the status line). It's still the
+    // app's name for the Window menu, Mission Control and VoiceOver.
     window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Hub"
+    window.titleVisibility = .hidden
     observers = [
       webView.observe(\.themeColor) { [weak self] view, _ in self?.window.backgroundColor = view.themeColor ?? Self.background },
     ]

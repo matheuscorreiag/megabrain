@@ -63,7 +63,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `server.js` | HTTP + WebSocket wiring, access checks, static files |
 | `lib/config.js` | `config.json` loading/defaults, shared helpers (auth, origin check, this-Mac check, env cleaning) |
 | `lib/power.js` | on / off: the keep-awake assertion (`caffeinate -i -w <pid>`) and the `off` marker |
-| `lib/network.js` | `GET /api/network` for the sidebar's Settings: the `tailscale serve` URL that proxies to our port, the tailnet name and IPs (tailscale CLI, cached 15 s) |
+| `lib/network.js` | `GET /api/network` for the sidebar's Share button: the `tailscale serve` URL that proxies to our port, the tailnet name and IPs (tailscale CLI, cached 15 s) |
 | `lib/chat.js` | chats: processes, queue, interrupt, persistence, broadcast, uploads/media, accent hues |
 | `lib/agents/claude.js` | **the only Claude-specific code**: CLI args, message encoding, interrupt, event parsing, labels |
 | `lib/agents/index.js` | adapter registry by `agent.type` |
@@ -94,7 +94,8 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   context `{ used, window }`, settings `{ model, effort }` (null = default),
   cwd (the agent's folder now; Claude: the last `cwd` stamp in its own
   session log, `~/.claude/projects/*/<sessionId>.jsonl` — the stream only
-  reports the starting one), doneAt / readAt. Account-wide usage windows: `~/.term-hub/limits.json`.
+  reports the starting one), pinned (its place in Pinned, from 1; absent =
+  not pinned), doneAt / readAt. Account-wide usage windows: `~/.term-hub/limits.json`.
 - **Model / effort**: the chat's settings become the adapter's `--model` /
   `--effort` when its process spawns. A process keeps its flags, so changing
   them retires it (`retire()`: detach, then end stdin) — at once if idle, at
@@ -132,6 +133,8 @@ to a generic card.
   latest`).
 - Titles: user-set `@hub_title` wins, else the program's terminal title, else
   the folder name. Tab accent hue is derived from the id (no stored color).
+- Pinned: the session option `@hub_pinned` (its place, from 1 — tmux's `#{?}`
+  reads 0 as false). `bin/hub` lists in the same order as the sidebar.
 - The Files API is confined to `config.root` (symlinks resolved); "delete" moves
   to the macOS Trash.
 
@@ -141,9 +144,10 @@ to a generic card.
   is a client like a browser: a WKWebView on the panel's URL (This Mac =
   `http://127.0.0.1:7680`, or another Mac's Tailscale URL), so the UI stays one
   codebase. Native code only adds what a tab can't do. The bundle has to be
-  called something ("Hub"); the UI inside still shows no name. The window's
-  title is fixed (the app's name), not the open chat's — the chat and its
-  folder are in the status line. Its icon is
+  called something ("Hub"); the UI inside still shows no name. The title bar
+  shows no title (`titleVisibility = .hidden`) — the chat and its folder are
+  in the status line; the window's title stays the app's name, never the open
+  chat's, for the Window menu and Mission Control. Its icon is
   `macos/AppIcon.svg` (drawn on Apple's 1024 grid: two bars and the cyan hub
   between them); the menu-bar glyph is the same mark drawn in code
   (`StatusMenu.glyph()`). The web favicon (`public/icon.svg`) is separate.
@@ -184,7 +188,15 @@ to a generic card.
 - Anything both pages need goes in `base.css` / `ui.js`, not copied.
 - Sidebar items are rendered **in place, keyed by id** (rebuilding them breaks
   double-click rename and focus). Hold re-renders while an inline rename is
-  open.
+  open, and while an item is being dragged (`pinning.dragging`).
+- **Pinned** (both pages): `setupPinning()` in ui.js builds the section above
+  the page's list and does the dragging — pointer events, not HTML5 drag and
+  drop (which phones don't do); a mouse drags past 5px, a finger after holding
+  still for 450ms, so a swipe still scrolls. The page renders pinned items
+  into `pinning.nav` and gets `onDrop(id, index | null)`; it sends the whole
+  pinned order (`PUT /api/chats/pinned` / `/api/tabs/pinned` `{ ids }`) and
+  applies it locally at once. Lists come sorted from the server — pinned
+  first, by place — so ⌘1–9 and the numbers count pinned items first.
 - Confirmations and one-line prompts use `ask()` (ui.js), not `confirm()` /
   `prompt()`: the app's look, Enter / Esc / click outside, focus kept inside,
   page ⌘-shortcuts held while it's open. Delete chat (⇧⌘D and the ⋯ menu) and
@@ -201,7 +213,8 @@ to a generic card.
 - Shortcuts are one table per page (chat: `SHORTCUTS` in `app.js`, also drives
   the Shortcuts screen). Chat: ⌘1–9, ⌘B, ⌘J, ⌘K, ⌘/, ⇧⌘E rename, ⇧⌘D delete
   (not ⌘⌫, the Mac's usual delete: in the message box it erases the line;
-  not ⇧⌘R, the browser's hard reload). Terminal: ⌘1–9, ⌘B, ⌘E
+  not ⇧⌘R, the browser's hard reload), ⇧⌘P pin / unpin (also on the
+  terminal page). Terminal: ⌘1–9, ⌘B, ⌘E
   — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E belong
   to the shell. Both: N = new chat / terminal, T = chats ↔ terminal, via
   `appKey()` / `isAppKey()` in ui.js: plain ⌘N / ⌘T in the macOS app or an
@@ -223,7 +236,7 @@ to a generic card.
   `/api/config`): `fromThisMac()` compares the client address — `X-Forwarded-For`, which
   `tailscale serve` overwrites with the client's tailnet IP, or the peer for
   direct localhost requests — with this machine's own interface addresses.
-- The Settings popover (gear next to the status dot, `setupSettings()` in
+- The Share popover (the button next to the status dot, `setupShare()` in
   ui.js, both pages) shows the tailnet name, IPs and serve URL, computed at
   runtime — they still never go in tracked files. It flags Tailscale Funnel
   if it's on.

@@ -14,9 +14,10 @@ PORT=${PORT:-7680}
 
 t() { tmux -L term-hub -f "$DIR/tmux.conf" "$@"; }
 
+# In the web UI's order: pinned first (@hub_pinned), then the oldest first.
 tabs() {
-  t list-sessions -F '#{session_created}	#{session_name}	#{?#{@hub_title},#{@hub_title},#{pane_title}}	#{pane_current_path}' 2>/dev/null |
-    grep '	hub-' | sort -n | cut -f2-
+  t list-sessions -F '#{?#{@hub_pinned},#{@hub_pinned},999999}	#{session_created}	#{session_name}	#{?#{@hub_title},#{@hub_title},#{pane_title}}	#{pane_current_path}' 2>/dev/null |
+    grep '	hub-' | sort -t '	' -k1,1n -k2,2n | cut -f3-
 }
 
 case "${1:-}" in

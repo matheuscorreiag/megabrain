@@ -172,6 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     _ = submenu("File", [
       page("New Chat", "n", code: "KeyN"),
       page("Rename Chat…", "e", code: "KeyE", [.command, .shift]),
+      page("Pin / Unpin", "p", code: "KeyP", [.command, .shift]),
       page("Delete Chat…", "d", code: "KeyD", [.command, .shift]),
       .separator(),
       item("Close Window", #selector(NSWindow.performClose(_:)), "w"),

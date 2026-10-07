@@ -542,6 +542,86 @@ body.show-keys .side-item .more {
   font-size: 13px;
   padding: 10px;
 }
+
+/* Pinned (setupPinning in ui.js): above the list, sized to its items (up to
+   about half the sidebar, then it scrolls on its own). */
+.side-section {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 45%;
+}
+.side-section .side-list {
+  flex: 0 1 auto;
+  padding-bottom: 4px;
+}
+/* Nothing pinned yet: while dragging, an empty slot to drop into. */
+.side-section.empty .side-list::before {
+  content: 'Drop here to pin';
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  font: 10.5px/1.4 var(--mono);
+  color: var(--faint);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.side-section.empty.over .side-list::before {
+  border-color: var(--drag-accent);
+  color: var(--drag-accent);
+  background: color-mix(in oklab, var(--drag-accent) 8%, transparent);
+}
+body.pin-dragging,
+body.pin-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+.side-item.dragging {
+  opacity: 0.35;
+}
+/* The item under the pointer while it's dragged (a copy, outside the sidebar). */
+.side-item.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: color-mix(in oklab, var(--item-accent) 8%, var(--raised-2));
+  box-shadow: var(--shadow), inset 0 0 0 1px color-mix(in oklab, var(--item-accent) 35%, transparent);
+  opacity: 0.95;
+}
+.drag-ghost::before,
+.drag-ghost .more,
+.drag-ghost .kbd {
+  display: none !important;
+}
+/* Where it will land: a line in the dragged item's color. */
+.side-item.drop-before::after,
+.side-item.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--drag-accent);
+  box-shadow: 0 0 8px var(--drag-accent);
+  pointer-events: none;
+}
+.side-item.drop-before::after {
+  top: -2px;
+}
+.side-item.drop-after::after {
+  bottom: -2px;
+}
+/* A pinned item dragged back down to the list: unpin. */
+.side-list.drop-target {
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--drag-accent) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--drag-accent) 30%, transparent);
+}
 .side-foot {
   display: grid;
   gap: 2px;
@@ -691,20 +771,20 @@ body.sidebar-collapsed #open-sidebar {
   }
 }
 
-/* ----------------------------------------------------------- settings */
+/* -------------------------------------------------------------- share */
 
-/* The gear sits just before the status dot, which keeps them to the right. */
-#open-settings {
+/* The share button sits just before the status dot, which keeps them to the right. */
+#open-share {
   margin-left: auto;
 }
-#open-settings + .conn {
+#open-share + .conn {
   margin-left: 0;
 }
-#open-settings svg {
+#open-share svg {
   width: 17px;
   height: 17px;
 }
-#settings-panel {
+#share-panel {
   position: fixed;
   z-index: 30;
   width: min(340px, calc(100vw - 24px));
@@ -717,30 +797,30 @@ body.sidebar-collapsed #open-sidebar {
   box-shadow: var(--shadow);
   animation: pop-in 0.14s var(--ease);
 }
-#settings-panel h2 {
+#share-panel h2 {
   margin: 0 0 4px;
   font: 500 10px/1 var(--mono);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
 }
-#settings-panel h3 {
+#share-panel h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
-#settings-panel p {
+#share-panel p {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--muted);
 }
-#settings-panel p.fine {
+#share-panel p.fine {
   font-size: 11.5px;
   color: var(--faint);
 }
-#settings-panel p.warn {
+#share-panel p.warn {
   color: var(--warn);
 }
 .addr {
