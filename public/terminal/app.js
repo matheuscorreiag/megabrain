@@ -5,7 +5,7 @@
 import { Terminal } from '/vendor/xterm.mjs';
 import { FitAddon } from '/vendor/addon-fit.mjs';
 import { WebLinksAddon } from '/vendor/addon-web-links.mjs';
-import { $, h, touch, narrow, isMac, appKey, isAppKey, api, storage, toast, fail, showMenu, editInline, setupSidebar, setupPinning, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
+import { $, h, touch, narrow, isMac, appKey, isAppKey, itemKey, itemNumber, api, storage, toast, fail, showMenu, editInline, setupSidebar, setupPinning, setConn, accentFor, setHue, toHex, indexLabel, MORE_ICON } from '/ui.js';
 
 const local = storage('terminal'); // active tab, last folder, panels
 let config = { root: '/', workdir: '/', home: '/', hostname: '' };
@@ -14,8 +14,9 @@ let activeId = local.get('active', null);
 let editing = false; // a name is being renamed inline: hold list re-renders
 const views = new Map(); // tab id -> { el, term, fit, ws, status, retries, timer, gone }
 
-// In a terminal, Ctrl+B/E/1… belong to the shell; off macOS this page uses
-// Ctrl+Shift instead (macOS keeps ⌘, which terminals never see).
+// In a terminal, Ctrl+B/E belong to the shell; off macOS this page uses
+// Ctrl+Shift for them instead (macOS keeps ⌘, which terminals never see).
+// 1–9 are the chat page's keys (ui.js itemNumber).
 const TMOD = isMac ? '⌘' : 'Ctrl+Shift+';
 const tmod = (e) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey) && !e.altKey;
 
@@ -140,11 +141,11 @@ function renderList() {
     const path = tildify(tab.currentPath || tab.cwd);
     item.el.classList.toggle('active', tab.id === activeId);
     item.el.style.setProperty('--item-accent', accentFor(hueOf(tab.id)));
-    item.el.title = `${tab.title}\n${path}${i < 9 ? `  (${TMOD}${i + 1})` : ''}`;
+    item.el.title = `${tab.title}\n${path}${i < 9 ? `  (${itemKey(i + 1)})` : ''}`;
     item.avatar.textContent = indexLabel(i);
     item.name.textContent = tab.title;
     item.sub.textContent = tab.clients > 1 ? `${path} · ${tab.clients} devices` : path;
-    item.kbd.textContent = i < 9 ? `${TMOD}${i + 1}` : '';
+    item.kbd.textContent = i < 9 ? itemKey(i + 1) : '';
     item.kbd.hidden = i >= 9;
     (isPinned(tab) ? pinning.nav : nav).append(item.el);
   });
@@ -370,9 +371,10 @@ document.addEventListener('visibilitychange', () => !document.hidden && refreshU
 // Captured before xterm sees them, so they never reach the shell.
 const SHORTCUTS = [
   {
-    match: (e) => tmod(e) && /^Digit[1-9]$/.test(e.code),
+    // 1–9: the same keys as on the chat page (ui.js itemNumber).
+    match: (e) => itemNumber(e) > 0,
     run: (e) => {
-      const tab = tabs[Number(e.code.slice(5)) - 1];
+      const tab = tabs[itemNumber(e) - 1];
       if (!tab) return false;
       activate(tab.id);
     },

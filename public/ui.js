@@ -21,6 +21,12 @@ export const standalone = Boolean(native) || matchMedia('(display-mode: standalo
 // are the browser's, and the shell's on the terminal page.
 export const appKey = (letter) => (isMac ? `${standalone ? '' : '⇧'}⌘${letter}` : `Ctrl+Shift+${letter}`);
 export const isAppKey = (e, letter) => e.code === `Key${letter}` && !e.altKey && (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey && !e.metaKey);
+// 1–9: the sidebar's item n — a chat, or a terminal — with the same keys on
+// both pages: ⌘1–9, Ctrl+1–9 off macOS (no shell has a use for Ctrl+digit
+// worth keeping). itemNumber: n for such a keydown, else 0.
+export const itemKey = (n) => `${MOD}${n}`;
+export const itemNumber = (e) =>
+  /^Digit[1-9]$/.test(e.code) && !e.shiftKey && !e.altKey && (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) ? Number(e.code.slice(5)) : 0;
 
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);

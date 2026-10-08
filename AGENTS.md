@@ -258,8 +258,11 @@ to a generic card.
   (not ⌘⌫, the Mac's usual delete: in the message box it erases the line;
   not ⇧⌘R, the browser's hard reload), ⇧⌘P pin / unpin (also on the
   terminal page). Terminal: ⌘1–9, ⌘B, ⌘E
-  — off macOS the terminal page uses Ctrl+Shift because plain Ctrl+B/E belong
-  to the shell. Both: N = new chat / terminal, T = chats ↔ terminal, via
+  — off macOS the terminal page uses Ctrl+Shift for B / E because plain
+  Ctrl+B/E belong to the shell. 1–9 (the sidebar's items) are the same keys
+  on both pages, ⌘1–9 / Ctrl+1–9 (`itemNumber()` / `itemKey()` in ui.js) — the
+  owner wants switching to feel the same in chats and terminals. Both: N =
+  new chat / terminal, T = chats ↔ terminal, via
   `appKey()` / `isAppKey()` in ui.js: plain ⌘N / ⌘T in the macOS app or an
   installed app window (`standalone`), ⇧⌘N / ⇧⌘T in a browser
   (Ctrl+Shift+N / T off macOS); either form matches. The owner chose these over

@@ -5,7 +5,7 @@
 
 import { Thread } from '/render.js';
 import { createLoader } from '/loader.js';
-import { $, h, touch, narrow, isMac, MOD, standalone, native, appKey, isAppKey, ask, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setupPinning, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
+import { $, h, touch, narrow, isMac, MOD, standalone, native, appKey, isAppKey, itemKey, itemNumber, ask, api, storage, toast, fail, place, hidePopovers, showMenu, editInline, setupSidebar, setupPinning, setConn, accentFor, setHue, indexLabel, MORE_ICON, ago } from '/ui.js';
 
 const randomId = () => Math.random().toString(36).slice(2, 10);
 const local = storage('chat'); // last chat, unsent drafts, settings for new chats
@@ -423,7 +423,7 @@ function renderList() {
     const busy = c.status === 'running';
     item.el.classList.toggle('active', state.view === 'chat' && c.id === state.chatId);
     item.el.style.setProperty('--item-accent', accentFor(c.hue));
-    item.el.title = i < 9 ? `${name}  (${MOD}${i + 1})` : name;
+    item.el.title = i < 9 ? `${name}  (${itemKey(i + 1)})` : name;
     item.avatar.textContent = indexLabel(i);
     item.avatar.classList.toggle('busy', busy);
     item.name.textContent = name;
@@ -431,7 +431,7 @@ function renderList() {
     item.sub.textContent = busy ? (c.queued ? `working · ${c.queued} queued` : 'working…') : c.unread ? `replied ${when}` : when;
     item.sub.classList.toggle('busy', busy || c.unread);
     item.el.classList.toggle('unread', c.unread && !busy);
-    item.kbd.textContent = i < 9 ? `${MOD}${i + 1}` : '';
+    item.kbd.textContent = i < 9 ? itemKey(i + 1) : '';
     item.kbd.hidden = i >= 9;
     (isPinned(c) ? pinning.nav : nav).append(item.el); // moves existing nodes into order
   });
@@ -734,12 +734,12 @@ const shiftMod = (e) => e.shiftKey && !e.altKey && (isMac ? e.metaKey && !e.ctrl
 const SHORTCUTS = [
   {
     id: 'switch',
-    keys: [`${MOD}1`, '…', `${MOD}9`],
+    keys: [itemKey(1), '…', itemKey(9)],
     label: 'Open chat 1–9',
-    note: 'In sidebar order — hold the modifier to see the numbers',
-    match: (e) => mod(e) && !e.shiftKey && /^Digit[1-9]$/.test(e.code),
+    note: 'In sidebar order — hold the modifier to see the numbers. The same keys open terminals 1–9',
+    match: (e) => itemNumber(e) > 0,
     run: (e) => {
-      const chat = state.chats[Number(e.code.slice(5)) - 1];
+      const chat = state.chats[itemNumber(e) - 1];
       if (!chat) return false;
       go(chat.id);
     },
