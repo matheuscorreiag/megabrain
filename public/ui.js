@@ -10,7 +10,7 @@ export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD = isMac ? '⌘' : 'Ctrl+';
 // Inside the macOS app (macos/): it registers this handler and wants to hear
 // about on / off.
-const bridge = window.webkit?.messageHandlers?.megabrain;
+const bridge = window.webkit?.messageHandlers?.mothership;
 export const native = bridge ? (msg) => bridge.postMessage(msg) : null;
 // The installed app's window, or the macOS app. Only there do ⌘N / ⌘T / ⌘W
 // reach the page: in a browser tab Chrome keeps them (new window, tab, close).
@@ -36,10 +36,10 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
-// Every write carries X-Megabrain: the server refuses writes without it, which a
+// Every write carries X-Mothership: the server refuses writes without it, which a
 // cross-site page can't add without a CORS preflight.
 export async function api(method, url, body, contentType) {
-  const init = { method, headers: { 'x-megabrain': '1' } };
+  const init = { method, headers: { 'x-mothership': '1' } };
   if (typeof body === 'string' || body instanceof Blob) {
     init.body = body;
     if (contentType || body.type) init.headers['content-type'] = contentType || body.type;

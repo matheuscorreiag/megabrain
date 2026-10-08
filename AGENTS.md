@@ -53,7 +53,7 @@ owner's subscription — no API key, no Agent SDK). The UI must stay
 ```
 browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680)
                                          ├─ /ws/chat      lib/chat.js ──► agent process per chat (lib/agents/<type>.js)
-                                         ├─ /ws/tabs/<id> lib/terminal.js ──► node-pty ⇄ tmux -L megabrain
+                                         ├─ /ws/tabs/<id> lib/terminal.js ──► node-pty ⇄ tmux -L mothership
                                          ├─ /api/*        REST (chats, uploads, local images, tabs, files)
                                          └─ static        public/ (no build step)
 ```
@@ -74,7 +74,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
 | `public/loader.js` | the "working" indicator (small, swappable contract) |
 | `public/terminal/*` | terminal page |
 | `public/terminal/editor.js` | the Files editor: CodeMirror 6, loaded on the first open; languages by file name or `#!` line |
-| `bin/megabrain` | open the same tmux tabs over SSH |
+| `bin/mothership` | open the same tmux tabs over SSH |
 | `scripts/launchd.sh` | install / start / stop / restart / uninstall the launchd agent |
 | `macos/` | the macOS app (Swift package, `build.sh`); see below |
 
@@ -87,7 +87,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   (`session`, `draft-start`, `draft-delta`, `block`, `tool-result`, `context`,
   `limits`, `result`, `notice` — documented at the top of `claude.js`).
   `chat.js` turns those into **items** appended to
-  `~/.megabrain/chats/<id>/events.jsonl` and broadcast to every socket watching
+  `~/.mothership/chats/<id>/events.jsonl` and broadcast to every socket watching
   the chat. Live-only events (drafts) are not persisted.
 - **History is paged** (`historyPage()`): `open` answers with the last ~100
   items (`more`, `turnsBefore` — prompts before the page, so turns keep their
@@ -113,7 +113,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   cwd (the agent's folder now; Claude: the last `cwd` stamp in its own
   session log, `~/.claude/projects/*/<sessionId>.jsonl` — the stream only
   reports the starting one), pinned (its place in Pinned, from 1; absent =
-  not pinned), doneAt / readAt. Account-wide usage windows: `~/.megabrain/limits.json`.
+  not pinned), doneAt / readAt. Account-wide usage windows: `~/.mothership/limits.json`.
 - **Model / effort**: the chat's settings become the adapter's `--model` /
   `--effort` when its process spawns. A process keeps its flags, so changing
   them retires it (`retire()`: detach, then end stdin) — at once if idle, at
@@ -124,7 +124,7 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   It's read when a socket that has the chat open is visible (the page sends
   `{ op: 'visibility' }` on connect and on visibilitychange) — at turn end,
   on `open`, or when the page becomes visible. Shared by every device.
-- Images from tool results are saved content-addressed in `~/.megabrain/media/`;
+- Images from tool results are saved content-addressed in `~/.mothership/media/`;
   uploads go there too. Attachments are passed to the agent as image blocks
   (png/jpeg/gif/webp) and always also by path.
 
@@ -145,24 +145,24 @@ to a generic card.
 
 ### Terminals
 
-- Each tab is a tmux session `megabrain-<8 hex>` on the dedicated socket
-  `tmux -L megabrain` (config: `tmux.conf`), running a login shell. Tabs survive
+- Each tab is a tmux session `mothership-<8 hex>` on the dedicated socket
+  `tmux -L mothership` (config: `tmux.conf`), running a login shell. Tabs survive
   browser disconnects and can be attached from several devices (`window-size
   latest`).
-- Titles: user-set `@megabrain_title` wins, else the program's terminal title, else
+- Titles: user-set `@mothership_title` wins, else the program's terminal title, else
   the folder name. Tab accent hue is derived from the id (no stored color).
-- Pinned: the session option `@megabrain_pinned` (its place, from 1 — tmux's `#{?}`
-  reads 0 as false). `bin/megabrain` lists in the same order as the sidebar.
+- Pinned: the session option `@mothership_pinned` (its place, from 1 — tmux's `#{?}`
+  reads 0 as false). `bin/mothership` lists in the same order as the sidebar.
 - The Files API is confined to `config.root` (symlinks resolved); "delete" moves
   to the macOS Trash.
 
 ### macOS app
 
-- `macos/` builds `Megabrain.app` (`macos/build.sh`; SwiftPM, no Xcode project). It
+- `macos/` builds `Mothership.app` (`macos/build.sh`; SwiftPM, no Xcode project). It
   is a client like a browser: a WKWebView on the panel's URL (This Mac =
   `http://127.0.0.1:7680`, or another Mac's Tailscale URL), so the UI stays one
   codebase. Native code only adds what a tab can't do. The bundle has to be
-  called something ("Megabrain"); the UI inside still shows no name. The title bar
+  called something ("Mothership"); the UI inside still shows no name. The title bar
   shows no title (`titleVisibility = .hidden`) — the chat and its folder are
   in the status line; the window's title stays the app's name, never the open
   chat's, for the Window menu and Mission Control. Its icon is
@@ -184,8 +184,8 @@ to a generic card.
   marks a chat read. In front, the page's notice covers it (no banner).
 - Closing the window hides it; external links and `target=_blank` open in the
   default browser; confirm/prompt/file inputs/downloads get native panels.
-- **Test**: `macos/build.sh --debug` builds `Megabrain-debug.app` (own bundle id) with
-  `SelfTest.swift`; run `macos/.build/Megabrain-debug.app/Contents/MacOS/Megabrain -selfTest
+- **Test**: `macos/build.sh --debug` builds `Mothership-debug.app` (own bundle id) with
+  `SelfTest.swift`; run `macos/.build/Mothership-debug.app/Contents/MacOS/Mothership -selfTest
   <dir> -localPort 7681` against a test server. It sends real ⌘-key events
   through AppKit, flips the power switch, goes through the native confirm and
   writes `results.txt` plus snapshots (screen capture isn't available to an
@@ -193,7 +193,7 @@ to a generic card.
   menu-bar icon appear while it runs. `-launchdLabel com.example.none` plays a
   Mac without a server (the "Connect to Another Mac…" page).
 - **Releases**: bump `macos/VERSION`, commit and push, then `macos/release.sh`
-  builds a universal (arm64 + x86_64) `Megabrain.app`, zips it with `ditto` (keeps the
+  builds a universal (arm64 + x86_64) `Mothership.app`, zips it with `ditto` (keeps the
   bundle and signature) and creates the GitHub release `macos-v<VERSION>` with
   the zip. Ad hoc signed: downloads need "Open Anyway" once; notarizing would
   need a paid Apple developer account.
@@ -275,7 +275,7 @@ to a generic card.
   runtime — they still never go in tracked files. It flags Tailscale Funnel
   if it's on.
 - Cross-site protection: `Origin`/`Sec-Fetch-Site` checks on API and WebSocket
-  upgrades, plus a required `X-Megabrain: 1` header on every write.
+  upgrades, plus a required `X-Mothership: 1` header on every write.
 - Media and `/api/local-image` (images under `$HOME` only) are served with a
   sandboxing CSP and `nosniff`.
 - `config.json` (has the owner's Tailscale login) is gitignored — never commit
@@ -292,11 +292,11 @@ npm start                         # uses config.json (port 7680)
 with a cheap model and a scratch data dir:
 
 ```json
-{ "port": 7681, "dataDir": "/tmp/megabrain-test/data", "agent": { "type": "claude", "model": "haiku", "idleMinutes": 1 } }
+{ "port": 7681, "dataDir": "/tmp/mothership-test/data", "agent": { "type": "claude", "model": "haiku", "idleMinutes": 1 } }
 ```
 
 ```bash
-MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
+MOTHERSHIP_CONFIG=/path/to/test-config.json node server.js
 ```
 
 - Drive the UI with headless Chrome over CDP (`--remote-debugging-port`,
@@ -315,7 +315,7 @@ MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
 - Server changes (`server.js`, `lib/`) need `scripts/launchd.sh restart`. A
   restart kills running agent processes: **first check that no chat is running**
   (`curl -s http://127.0.0.1:7680/api/chats` → every `status` is `idle`).
-- Logs: `~/Library/Logs/megabrain.log`.
+- Logs: `~/Library/Logs/mothership.log`.
 - **On / off** is a state of the running server, not of the process: a page
   can't start a stopped server, so off keeps the process up (idle) and only
   drops the keep-awake assertion, stops agents and closes every socket. While
@@ -326,7 +326,7 @@ MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
   `scripts/launchd.sh install` if an old plist still wraps it in `caffeinate`.
 - `scripts/launchd.sh stop` / `start` stop the process entirely (disable +
   bootout, so neither KeepAlive nor the next login restarts it).
-  `MEGABRAIN_LABEL=<other label>` makes the script manage another job with its own
+  `MOTHERSHIP_LABEL=<other label>` makes the script manage another job with its own
   plist and log — test launchd changes that way, with a config on another port.
 
 ## Gotchas already hit
@@ -391,9 +391,9 @@ MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
 
 ## Data and persistence
 
-- `~/.megabrain/chats/<id>/{meta.json,events.jsonl}` (plus `events-<ts>.jsonl`,
-  what each `/clear` set aside), `~/.megabrain/media/`,
-  `~/.megabrain/limits.json`, `~/.megabrain/off` (present while turned off). The
+- `~/.mothership/chats/<id>/{meta.json,events.jsonl}` (plus `events-<ts>.jsonl`,
+  what each `/clear` set aside), `~/.mothership/media/`,
+  `~/.mothership/limits.json`, `~/.mothership/off` (present while turned off). The
   agent's own transcripts (used by `--resume`) live in `~/.claude/`.
 - Survives connection drops and restarts. Lost on a hard shutdown mid-turn:
   the block being streamed and the in-memory queue. Ideas not done yet:
@@ -403,6 +403,6 @@ MEGABRAIN_CONFIG=/path/to/test-config.json node server.js
 
 - Communicate in Portuguese; keep the app and code in English.
 - Commit and push only when asked; the repo is private
-  (`github.com/matheuscorreiag/megabrain`).
+  (`github.com/matheuscorreiag/mothership`).
 - Verify UI changes in a real browser (desktop and phone sizes) before saying
   they work, and say what wasn't verified.

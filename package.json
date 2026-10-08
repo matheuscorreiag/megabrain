@@ -1,5 +1,5 @@
 {
-  "name": "megabrain",
+  "name": "mothership",
   "version": "0.1.0",
   "description": "Web chat UI for a coding agent running on this Mac (Claude Code adapter), plus tmux terminal tabs — reachable over Tailscale.",
   "type": "module",

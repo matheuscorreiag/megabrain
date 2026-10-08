@@ -1,4 +1,4 @@
-// megabrain — a web UI for the coding agent running on this Mac (/), plus the
+// mothership — a web UI for the coding agent running on this Mac (/), plus the
 // terminal tabs and file browser (/terminal/). Listens on localhost only;
 // reach it from other devices with `tailscale serve` (see README).
 // Settings: config.json.
@@ -89,7 +89,7 @@ async function serveNpm(req, res, pathname) {
 async function handleApi(req, res, url) {
   // A custom header can't be sent cross-site without a CORS preflight, which
   // this server never grants.
-  if (req.method !== 'GET' && req.headers['x-megabrain'] !== '1') throw new HttpError(403, 'missing X-Megabrain header');
+  if (req.method !== 'GET' && req.headers['x-mothership'] !== '1') throw new HttpError(403, 'missing X-Mothership header');
   if (url.pathname === '/api/config' && req.method === 'GET') {
     return sendJson(res, 200, { ...terminalInfo, home: HOME, hostname: HOSTNAME, thisMac: fromThisMac(req), on: power.on });
   }
@@ -156,7 +156,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
 await loadChats();
 keepAwake();
 server.listen(config.port, config.host, () => {
-  console.log(`megabrain on http://${config.host}:${config.port}${power.on ? '' : ' (turned off)'}`);
+  console.log(`mothership on http://${config.host}:${config.port}${power.on ? '' : ' (turned off)'}`);
   console.log(`  agent: ${config.agent.type} — ${config.agent.command} ${config.agent.args.join(' ')} (in ${config.agent.cwd})`);
   if (config.allowedLogins.length) console.log(`  allowed Tailscale logins: ${config.allowedLogins.join(', ')}`);
 });

@@ -1,4 +1,4 @@
-# Megabrain
+# Mothership
 
 A chat UI of your own for the **coding agent running on this Mac**, reachable
 from your phone or any device on your tailnet. The work happens here — files,
@@ -7,12 +7,12 @@ is behind it; today the available adapter is Claude Code (`claude -p` in
 headless mode, using your subscription).
 
 ```
-phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► megabrain :7680 (localhost only)
+phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► mothership :7680 (localhost only)
       ▲                                                        │
       └──────────── WebSocket /ws/chat (live events) ──────────┤
                                                                ├─ chat A → agent process ─┐
                                                                ├─ chat B → agent process  ├─ lib/agents/<type>.js
-                                                               └─ ~/.megabrain/chats/<id>/  ┘
+                                                               └─ ~/.mothership/chats/<id>/  ┘
 ```
 
 ## How it works
@@ -21,7 +21,7 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► megab
   **adapter** (`lib/agents/`) turns the agent's protocol into neutral events —
   streamed text, blocks, tool calls and results, images, context and usage
   limits. The rest of the app only knows those events.
-- The server appends them to `~/.megabrain/chats/<id>/events.jsonl` and
+- The server appends them to `~/.mothership/chats/<id>/events.jsonl` and
   broadcasts them over a WebSocket to every device that has the chat open.
   Start on the laptop, carry on from the phone.
 - The process stays alive between messages; after `idleMinutes` without use it
@@ -108,7 +108,7 @@ phone / laptop ──(Tailscale, HTTPS)──► tailscale serve ──► megab
 - **Images** — the ones you attach (phone photos are downscaled first), the
   ones the agent reads with tools, and any image whose path it mentions. Tap
   to enlarge — an attachment too, before you send it. Other attachments are
-  saved to `~/.megabrain/media/` and their path goes into the message.
+  saved to `~/.mothership/media/` and their path goes into the message.
 
 ## Customize
 
@@ -141,7 +141,7 @@ see the neutral events at the top of `claude.js` — register it in
 | --- | --- | --- |
 | `port` / `host` | `7680` / `127.0.0.1` | where the server listens (keep localhost) |
 | `allowedLogins` | `[]` | Tailscale logins allowed in (recommended) |
-| `dataDir` | `~/.megabrain` | chats, media and the last known usage limits |
+| `dataDir` | `~/.mothership` | chats, media and the last known usage limits |
 | `agent.type` | `claude` | adapter in `lib/agents/` |
 | `agent.command` | `claude` | the agent's binary |
 | `agent.cwd` | `~` | folder the agent runs in |
@@ -187,11 +187,11 @@ use on a Mac — the browser stays for everything else (phone, Windows…):
   / Turn Off, and Start Server if the process isn't running at all.
 - **Settings** (⌘,): This Mac, or Another Mac by its Tailscale URL; open at login.
 
-**Download** it from the repo's [Releases](../../releases) (`Megabrain-macOS-<version>.zip`,
+**Download** it from the repo's [Releases](../../releases) (`Mothership-macOS-<version>.zip`,
 Apple silicon and Intel, macOS 14+), or build it:
 
 ```bash
-macos/build.sh                        # builds and installs /Applications/Megabrain.app (Xcode or its Command Line Tools)
+macos/build.sh                        # builds and installs /Applications/Mothership.app (Xcode or its Command Line Tools)
 macos/release.sh                      # publishes macos/VERSION as a GitHub release (commit and push first)
 ```
 
@@ -211,7 +211,7 @@ on the server's Mac.
   running something. Keep `allowedLogins` set and never expose this outside the
   tailnet (`tailscale funnel`, `host: 0.0.0.0`).
 - Listens on `127.0.0.1` only; cross-site requests are refused
-  (`Origin`/`Sec-Fetch-Site` checks plus an `X-Megabrain` header on writes and
+  (`Origin`/`Sec-Fetch-Site` checks plus an `X-Mothership` header on writes and
   WebSockets).
 - Media and local images are served with a strict CSP; `/api/local-image` only
   returns image files inside your home folder.
@@ -224,8 +224,8 @@ syntax highlighting and find / replace, upload, download, rename, move to
 Trash, type a path into the terminal), **New chat in this folder** (a chat
 whose agent starts in the open terminal's folder) and **Back to chats** to
 return to the main view. Terminals keep running when the
-browser closes and can be opened from several devices at once; `bin/megabrain`
-opens the same ones over SSH (`megabrain`, `megabrain 2`, `megabrain new`). Terminals pin like
+browser closes and can be opened from several devices at once; `bin/mothership`
+opens the same ones over SSH (`mothership`, `mothership 2`, `mothership new`). Terminals pin like
 chats: drag them to **Pinned**, ⇧⌘P or the ⋯ menu.
 
 | Keys | Action |

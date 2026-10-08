@@ -19,14 +19,14 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
 
   override init() {
     let config = WKWebViewConfiguration()
-    config.applicationNameForUserAgent = "Megabrain"
+    config.applicationNameForUserAgent = "Mothership"
     config.allowsInlinePredictions = false // no gray word completions as you type (see main.swift)
     let frame = NSRect(x: 0, y: 0, width: 1280, height: 820)
     webView = WKWebView(frame: frame, configuration: config)
     window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
     super.init()
     // The page checks for this handler to know it runs in the app (ui.js `native`).
-    config.userContentController.add(self, name: "megabrain")
+    config.userContentController.add(self, name: "mothership")
     webView.navigationDelegate = self
     webView.uiDelegate = self
     webView.setValue(false, forKey: "drawsBackground") // no white flash before the page paints
@@ -44,7 +44,7 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
     window.setFrameAutosaveName("Main")
     // No title in the bar (the open chat is in the status line). It's still the
     // app's name for the Window menu, Mission Control and VoiceOver.
-    window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Megabrain"
+    window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Mothership"
     window.titleVisibility = .hidden
     observers = [
       webView.observe(\.themeColor) { [weak self] view, _ in self?.window.backgroundColor = view.themeColor ?? Self.background },
@@ -164,8 +164,8 @@ final class WebWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDel
       button:hover { background: #12383d; }
       </style>
       <p class="label">\(label)</p><p>\(note)</p>
-      <button onclick="webkit.messageHandlers.megabrain.postMessage({ op: '\(op)' }); this.disabled = \(op != "settings")">\(button)</button>
-      <script>setInterval(() => webkit.messageHandlers.megabrain.postMessage({ op: 'retry' }), 5000)</script>
+      <button onclick="webkit.messageHandlers.mothership.postMessage({ op: '\(op)' }); this.disabled = \(op != "settings")">\(button)</button>
+      <script>setInterval(() => webkit.messageHandlers.mothership.postMessage({ op: 'retry' }), 5000)</script>
       """
     webView.loadHTMLString(html, baseURL: nil)
   }

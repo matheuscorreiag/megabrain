@@ -159,7 +159,7 @@ function renderList() {
   $('#chat-here').title = active ? `New chat in ${tildify(active.currentPath || active.cwd)}` : '';
 }
 
-// Pinned tabs (tmux @megabrain_pinned, their place from 1) come first, in the
+// Pinned tabs (tmux @mothership_pinned, their place from 1) come first, in the
 // server's order — mirrored here so a drop shows at once.
 const isPinned = (t) => t.pinned != null;
 const byPlace = (a, b) => (a.pinned ?? Infinity) - (b.pinned ?? Infinity) || a.created - b.created;
@@ -634,7 +634,7 @@ function loadCode() {
 async function openFile(entry) {
   const n = ++opening;
   try {
-    const res = await fetch(`/api/fs/read?path=${encodeURIComponent(entry.path)}`, { headers: { 'x-megabrain': '1' } });
+    const res = await fetch(`/api/fs/read?path=${encodeURIComponent(entry.path)}`, { headers: { 'x-mothership': '1' } });
     if (res.status === 413 || res.status === 415) {
       const { error } = await res.json();
       if (n !== opening) return;

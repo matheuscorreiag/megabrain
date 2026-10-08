@@ -158,16 +158,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return item
     }
 
-    _ = submenu("Megabrain", [
-      item("About Megabrain", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+    _ = submenu("Mothership", [
+      item("About Mothership", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
       .separator(),
       item("Settings…", #selector(showSettings(_:)), ",", target: self),
       .separator(),
-      item("Hide Megabrain", #selector(NSApplication.hide(_:)), "h"),
+      item("Hide Mothership", #selector(NSApplication.hide(_:)), "h"),
       item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
       item("Show All", #selector(NSApplication.unhideAllApplications(_:))),
       .separator(),
-      item("Quit Megabrain", #selector(NSApplication.terminate(_:)), "q"),
+      item("Quit Mothership", #selector(NSApplication.terminate(_:)), "q"),
     ])
     _ = submenu("File", [
       page("New Chat", "n", code: "KeyN"),

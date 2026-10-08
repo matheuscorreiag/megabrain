@@ -1,9 +1,9 @@
 #!/bin/sh
 # Build the macOS app and install it.
 #
-#   macos/build.sh               release build (Apple silicon + Intel) → /Applications/Megabrain.app (or ~/Applications)
-#   macos/build.sh --no-install  release build in macos/.build/Megabrain.app only (macos/release.sh uses it)
-#   macos/build.sh --debug       debug build with the self-test → macos/.build/Megabrain-debug.app
+#   macos/build.sh               release build (Apple silicon + Intel) → /Applications/Mothership.app (or ~/Applications)
+#   macos/build.sh --no-install  release build in macos/.build/Mothership.app only (macos/release.sh uses it)
+#   macos/build.sh --debug       debug build with the self-test → macos/.build/Mothership-debug.app
 #                                (separate bundle id, so its settings and permissions don't mix)
 #
 # The version is macos/VERSION. Signed ad hoc (no Apple account): fine on this
@@ -13,9 +13,9 @@ set -eu
 
 DIR=$(cd "$(dirname "$0")" && pwd)
 VERSION=$(cat "$DIR/VERSION")
-MODE=release NAME=Megabrain ID=com.matheuscorreiag.megabrain INSTALL=yes
+MODE=release NAME=Mothership ID=com.matheuscorreiag.mothership INSTALL=yes
 case "${1:-}" in
-  --debug) MODE=debug NAME=Megabrain-debug ID=com.matheuscorreiag.megabrain.debug INSTALL=no ;;
+  --debug) MODE=debug NAME=Mothership-debug ID=com.matheuscorreiag.mothership.debug INSTALL=no ;;
   --no-install) INSTALL=no ;;
   "") ;;
   *) echo "usage: $0 [--debug | --no-install]" >&2; exit 1 ;;
@@ -29,12 +29,12 @@ fi
 # shellcheck disable=SC2086 # ARCHS is two flags or none
 swift build -c "$MODE" $ARCHS --package-path "$DIR"
 # shellcheck disable=SC2086
-BIN="$(swift build -c "$MODE" $ARCHS --package-path "$DIR" --show-bin-path)/Megabrain"
+BIN="$(swift build -c "$MODE" $ARCHS --package-path "$DIR" --show-bin-path)/Mothership"
 
 APP="$DIR/.build/$NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/Megabrain"
+cp "$BIN" "$APP/Contents/MacOS/Mothership"
 sed -e "s/__ID__/$ID/" -e "s/__NAME__/$NAME/" -e "s/__VERSION__/$VERSION/g" "$DIR/Info.plist" >"$APP/Contents/Info.plist"
 swift "$DIR/make-icon.swift" "$DIR/AppIcon.svg" "$APP/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$APP"
@@ -47,7 +47,7 @@ fi
 DEST=/Applications
 [ -w "$DEST" ] || DEST="$HOME/Applications"
 mkdir -p "$DEST"
-if pgrep -xq Megabrain; then osascript -e 'quit app "Megabrain"' 2>/dev/null || true; sleep 1; fi
-rm -rf "$DEST/Megabrain.app"
-ditto "$APP" "$DEST/Megabrain.app"
-echo "installed: $DEST/Megabrain.app ($VERSION)"
+if pgrep -xq Mothership; then osascript -e 'quit app "Mothership"' 2>/dev/null || true; sleep 1; fi
+rm -rf "$DEST/Mothership.app"
+ditto "$APP" "$DEST/Mothership.app"
+echo "installed: $DEST/Mothership.app ($VERSION)"

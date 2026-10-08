@@ -2,7 +2,7 @@
   import AppKit
   import WebKit
 
-  // Debug builds only: `Megabrain -selfTest <dir> -localPort <test server's port>`
+  // Debug builds only: `Mothership -selfTest <dir> -localPort <test server's port>`
   // drives the app against a test server — real key events through AppKit,
   // the menu-bar switch, the native dialogs, the chat feed — and writes
   // results.txt plus snapshots of what the window shows. Never production.

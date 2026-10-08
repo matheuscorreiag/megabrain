@@ -5,7 +5,7 @@
   "workdir": "~",
   "shell": "/bin/zsh",
   "allowedLogins": [],
-  "dataDir": "~/.megabrain",
+  "dataDir": "~/.mothership",
   "agent": {
     "type": "claude",
     "command": "claude",

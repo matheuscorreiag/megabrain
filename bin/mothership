@@ -1,0 +1,48 @@
+#!/bin/sh
+# Use mothership's tabs from any terminal — e.g. over SSH through Tailscale.
+#
+#   mothership              list the tabs
+#   mothership <n|id>       attach to tab n (as listed) or by id — detach with Ctrl-b d
+#   mothership new [dir]    open a new tab in dir (default: here) and attach
+#
+# Tabs opened here show up in the web UI too, and vice versa.
+set -eu
+
+DIR=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+PORT=${PORT:-$(sed -n 's/.*"port": *\([0-9][0-9]*\).*/\1/p' "$DIR/config.json" 2>/dev/null | head -1)}
+PORT=${PORT:-7680}
+
+t() { tmux -L mothership -f "$DIR/tmux.conf" "$@"; }
+
+# In the web UI's order: pinned first (@mothership_pinned), then the oldest first.
+tabs() {
+  t list-sessions -F '#{?#{@mothership_pinned},#{@mothership_pinned},999999}	#{session_created}	#{session_name}	#{?#{@mothership_title},#{@mothership_title},#{pane_title}}	#{pane_current_path}' 2>/dev/null |
+    grep '	mothership-' | sort -t '	' -k1,1n -k2,2n | cut -f3-
+}
+
+case "${1:-}" in
+  "")
+    list=$(tabs) || true
+    if [ -z "$list" ]; then
+      echo "No terminals. Create one with: mothership new"
+      exit 0
+    fi
+    echo "$list" | awk -F'\t' '{ printf "%2d  %-40s %s  (%s)\n", NR, $2, $3, substr($1, 11) }'
+    ;;
+  new)
+    cwd=$(cd "${2:-.}" && pwd)
+    body=$(printf '{"cwd":"%s"}' "$(printf '%s' "$cwd" | sed 's/\\/\\\\/g; s/"/\\"/g')")
+    id=$(curl -fsS -X POST -H 'x-mothership: 1' -H 'content-type: application/json' -d "$body" "http://127.0.0.1:$PORT/api/tabs" |
+      sed -n 's/.*"id":"\([a-f0-9]*\)".*/\1/p')
+    [ -n "$id" ] || { echo "could not create the terminal — is mothership running?" >&2; exit 1; }
+    exec tmux -L mothership -f "$DIR/tmux.conf" attach -t "=mothership-$id"
+    ;;
+  *)
+    case "$1" in
+      *[!0-9]*) name="mothership-$1" ;;
+      *) name=$(tabs | sed -n "${1}p" | cut -f1) ;;
+    esac
+    [ -n "$name" ] || { echo "terminal '$1' not found" >&2; exit 1; }
+    exec tmux -L mothership -f "$DIR/tmux.conf" attach -t "=$name"
+    ;;
+esac
