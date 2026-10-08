@@ -613,24 +613,42 @@ filesPanel.addEventListener('drop', (e) => {
 // ----------------------------------------------------------------- editor
 
 const editor = $('#editor');
-let code = null; // the code editor (editor.js), made on the first open
+let code = null; // the code editor (editor.js)
+let loadingCode = null; // its first load: clicks while it loads wait for the same one
 let editingFile = null;
+let opening = 0; // the latest click wins (a double-click is two clicks)
+
+// Made once: a second click while CodeMirror loads (a double-click does it)
+// would otherwise add a second editor under the first, which then kept
+// showing the first file whatever was opened next.
+function loadCode() {
+  loadingCode ??= import('/terminal/editor.js')
+    .then((m) => (code = m.createEditor($('#editor-text'), { onSave: saveFile })))
+    .catch((err) => {
+      loadingCode = null;
+      throw err;
+    });
+  return loadingCode;
+}
 
 async function openFile(entry) {
+  const n = ++opening;
   try {
     const res = await fetch(`/api/fs/read?path=${encodeURIComponent(entry.path)}`, { headers: { 'x-megabrain': '1' } });
     if (res.status === 413 || res.status === 415) {
       const { error } = await res.json();
+      if (n !== opening) return;
       if (confirm(`${error[0].toUpperCase()}${error.slice(1)}. Download it now?`)) download(entry.path);
       return;
     }
     if (!res.ok) throw new Error((await res.json()).error);
     const text = await res.text();
-    code ??= (await import('/terminal/editor.js')).createEditor($('#editor-text'), { onSave: saveFile });
+    await loadCode();
+    if (n !== opening) return; // another file was clicked meanwhile
     editingFile = { path: entry.path, original: text };
     $('#editor-name').textContent = tildify(entry.path);
     $('#editor-status').textContent = '';
-    editor.showModal();
+    if (!editor.open) editor.showModal();
     code.open(text, entry.path.split('/').pop());
     if (!touch) code.focus();
   } catch (err) {
