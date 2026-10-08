@@ -799,16 +799,17 @@ button.tool-head:hover {
   background: var(--accent);
   animation: node-pulse 1.3s ease-in-out infinite;
 }
-/* The brain (loader.js): a faint outline, sparks running along its grooves
-   and a pulsing core. Calm while thinking, quicker while writing, and a ping
-   from the core while a tool runs. Sized not to make the row taller. */
+/* The flying wing (loader.js), in grays whatever the chat's accent: it
+   hovers and a light sweeps across it — calm while thinking, quicker while
+   writing — and contrails stream from it while a tool runs. Sized not to
+   make the row taller. */
 .loader-mark {
   display: inline-flex;
-  width: 22px;
+  width: 30px;
   height: 22px;
   margin: -4px 0;
   flex-shrink: 0;
-  color: var(--accent);
+  color: #f4f5f6;
   --beat: 1.8s;
 }
 .loader[data-phase='writing'] .loader-mark {
@@ -817,99 +818,52 @@ button.tool-head:hover {
 .loader[data-phase='tool'] .loader-mark {
   --beat: 1.3s;
 }
-.loader-brain {
+.loader-wing {
   width: 100%;
   height: 100%;
   overflow: visible;
 }
-.loader-brain path,
-.loader-brain circle {
-  transform-box: fill-box;
-  transform-origin: center;
+.loader-wing .craft {
+  animation: wing-hover calc(var(--beat) * 2) ease-in-out infinite;
 }
-.loader-brain .lobe {
-  fill: color-mix(in oklab, currentColor 14%, transparent);
-  stroke: currentColor;
-  stroke-width: 30;
-  stroke-linejoin: round;
-  opacity: 0.75;
-  animation: brain-breathe var(--beat) ease-in-out infinite;
+.loader-wing .sheen {
+  transform: skewX(-30deg);
+  animation: wing-sheen calc(var(--beat) * 1.6) ease-in-out infinite;
 }
-.loader-brain .groove,
-.loader-brain .spark {
-  fill: none;
+.loader-wing .trail {
   stroke: currentColor;
-  stroke-width: 34;
+  stroke-width: 16;
   stroke-linecap: round;
-}
-.loader-brain .groove {
-  opacity: 0.3;
-}
-.loader-brain .spark {
-  stroke-dasharray: 34 100;
-  stroke-dashoffset: 134;
-  filter: drop-shadow(0 0 30px currentColor);
-  animation: brain-spark calc(var(--beat) * 1.5) ease-in-out infinite;
-  animation-delay: calc(var(--i) * var(--beat) * -0.25);
-}
-.loader-brain .core {
-  fill: currentColor;
-  filter: drop-shadow(0 0 40px currentColor);
-  animation: brain-core var(--beat) ease-in-out infinite;
-}
-.loader-brain .ping {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 20;
+  stroke-dasharray: 50 70;
   opacity: 0;
+  transition: opacity 0.3s;
 }
-.loader[data-phase='tool'] .loader-brain .ping {
-  animation: brain-ping var(--beat) ease-out infinite;
+.loader[data-phase='tool'] .loader-wing .trail {
+  opacity: 0.55;
+  animation: wing-trail calc(var(--beat) / 2) linear infinite;
+  animation-delay: calc(var(--i) * var(--beat) / -8);
 }
-@keyframes brain-breathe {
+@keyframes wing-hover {
   0%,
   100% {
-    opacity: 0.55;
+    transform: translateY(-18px);
   }
   50% {
-    opacity: 0.9;
+    transform: translateY(18px);
   }
 }
-@keyframes brain-spark {
+@keyframes wing-sheen {
   0% {
-    stroke-dashoffset: 134;
-    opacity: 0;
+    transform: skewX(-30deg) translateX(0);
   }
-  15% {
-    opacity: 1;
-  }
-  70% {
-    opacity: 1;
-  }
+  70%,
   100% {
-    stroke-dashoffset: 0;
-    opacity: 0;
+    transform: skewX(-30deg) translateX(1500px);
   }
 }
-@keyframes brain-core {
-  0%,
-  100% {
-    transform: scale(0.8);
-    opacity: 0.75;
-  }
-  45% {
-    transform: scale(1.15);
-    opacity: 1;
-  }
-}
-@keyframes brain-ping {
-  0% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(3.4);
-    opacity: 0;
+@keyframes wing-trail {
+  to {
+    stroke-dashoffset: -120;
   }
 }
 .loader-time {
@@ -1747,7 +1701,7 @@ body[data-view='shortcuts'] #jump {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loader-brain *,
+  .loader-wing *,
   .loader::after,
   .assistant > .tool::before,
   .tool-state::after,

@@ -166,12 +166,16 @@ to a generic card.
   shows no title (`titleVisibility = .hidden`) — the chat and its folder are
   in the status line; the window's title stays the app's name, never the open
   chat's, for the Window menu and Mission Control. Its icon is
-  `macos/AppIcon.svg` (drawn on Apple's 1024 grid: a brain seen from above,
-  its two halves with the grooves cut out by a mask, and the cyan core between
-  them); the menu-bar glyph is the same mark drawn in code
-  (`StatusMenu.glyph()`, fewer and thicker grooves so they survive 18pt). The
-  web favicon (`public/icon.svg`) is the same brain, larger, on a rounded square.
-- The page knows it's inside through the `megabrain` message handler (`native` in
+  `macos/AppIcon.svg` (drawn on Apple's 1024 grid: a flying wing after the
+  B-2, seen from above — every edge parallel to one of the two leading edges,
+  the sawtooth trailing edge — its right half lit and its left half in shade,
+  in grays on near-black, Linear-like; no color on purpose); the menu-bar
+  glyph is the same wing drawn in code (`StatusMenu.glyph()`, the shaded half
+  at partial alpha). The web favicon (`public/icon.svg`) is the same wing,
+  larger, on a rounded square, and the working indicator (`loader.js`) is the
+  wing again: a light sweeps across it, and contrails stream from it while a
+  tool runs — in grays too, whatever the chat's accent.
+- The page knows it's inside through the `mothership` message handler (`native` in
   ui.js: standalone-style ⌘N hints, and it posts `{ op: 'power', on }`). The
   app's own pages ("Not running") post `start` / `retry`.
 - **Shortcuts**: the page gets ⌘-keys first (WKWebView hands key equivalents to

@@ -22,13 +22,13 @@
 
   <rect width="900" height="1550" fill="#0b1112"/>
 
-  <text x="40" y="58" font-size="32" font-weight="700" fill="#e6eeee">How megabrain works</text>
+  <text x="40" y="58" font-size="32" font-weight="700" fill="#e6eeee">How Mothership works</text>
   <text x="40" y="90" class="text">The work happens on the Mac. Your other devices only show the screen.</text>
 
   <!-- 1 · Devices -->
   <rect class="band" x="40" y="120" width="820" height="170" rx="12"/>
-  <rect x="40" y="120" width="5" height="170" rx="2" fill="#b49cff"/>
-  <text x="64" y="152" class="head" fill="#b49cff">1<tspan dx="12">YOUR DEVICES</tspan><tspan class="note" dx="12">only show the UI</tspan></text>
+  <rect x="40" y="120" width="5" height="170" rx="2" fill="#c9ccd1"/>
+  <text x="64" y="152" class="head" fill="#c9ccd1">1<tspan dx="12">YOUR DEVICES</tspan><tspan class="note" dx="12">only show the UI</tspan></text>
   <rect class="card" x="64" y="172" width="250" height="96" rx="9"/>
   <text x="84" y="210" class="title">Phone</text>
   <text x="84" y="240" class="text">browser · Home Screen app</text>
@@ -36,7 +36,7 @@
   <text x="345" y="210" class="title">Laptop</text>
   <text x="345" y="240" class="text">any browser</text>
   <rect class="card" x="586" y="172" width="250" height="96" rx="9"/>
-  <text x="606" y="210" class="title">Megabrain.app</text>
+  <text x="606" y="210" class="title">Mothership.app</text>
   <text x="606" y="240" class="text">macOS app (a web view)</text>
 
   <line class="wire" x1="322" y1="292" x2="322" y2="358" marker-start="url(#head)" marker-end="url(#head)"/>
@@ -45,27 +45,27 @@
 
   <!-- 2 · Network -->
   <rect class="band" x="40" y="360" width="820" height="128" rx="12"/>
-  <rect x="40" y="360" width="5" height="128" rx="2" fill="#f2b45a"/>
-  <text x="64" y="392" class="head" fill="#f2b45a">2<tspan dx="12">NETWORK</tspan></text>
+  <rect x="40" y="360" width="5" height="128" rx="2" fill="#9da1a8"/>
+  <text x="64" y="392" class="head" fill="#9da1a8">2<tspan dx="12">NETWORK</tspan></text>
   <text x="64" y="428" class="title">Tailscale<tspan dx="10" class="code-title" fill="#e6eeee">tailscale serve → 127.0.0.1:7680</tspan></text>
   <text x="64" y="462" class="text">Private: only your tailnet, your login checked. The Mac app on the Mac connects locally.</text>
 
   <line class="wire" x1="322" y1="490" x2="322" y2="546" marker-start="url(#head)" marker-end="url(#head)"/>
 
-  <!-- 3 · The brain computer -->
+  <!-- 3 · The mothership -->
   <rect class="band" x="40" y="548" width="820" height="572" rx="12"/>
-  <rect x="40" y="548" width="5" height="572" rx="2" fill="#45d1df"/>
-  <text x="64" y="580" class="head" fill="#45d1df">3<tspan dx="12">THE BRAIN COMPUTER</tspan><tspan class="note" dx="12">your Mac, kept running by launchd</tspan></text>
+  <rect x="40" y="548" width="5" height="572" rx="2" fill="#f4f5f6"/>
+  <text x="64" y="580" class="head" fill="#f4f5f6">3<tspan dx="12">THE MOTHERSHIP</tspan><tspan class="note" dx="12">your Mac, kept running by launchd</tspan></text>
 
-  <rect class="card" x="64" y="600" width="516" height="84" rx="9" stroke="#45d1df" stroke-opacity="0.45"/>
-  <text x="84" y="634" class="title">Server<tspan dx="10" class="code-title" fill="#45d1df">server.js</tspan><tspan dx="8" class="small">(Node)</tspan></text>
+  <rect class="card" x="64" y="600" width="516" height="84" rx="9" stroke="#f4f5f6" stroke-opacity="0.45"/>
+  <text x="84" y="634" class="title">Server<tspan dx="10" class="code-title" fill="#f4f5f6">server.js</tspan><tspan dx="8" class="small">(Node)</tspan></text>
   <text x="84" y="664" class="text">Web server + WebSocket hub · serves the pages and /api</text>
 
   <line class="wire" x1="322" y1="686" x2="322" y2="718" marker-start="url(#head)" marker-end="url(#head)"/>
   <text x="338" y="707" class="wire-note">/ws/chat</text>
 
   <rect class="card" x="64" y="720" width="516" height="110" rx="9"/>
-  <text x="84" y="754" class="title">Chat engine<tspan dx="10" class="code-title" fill="#45d1df">lib/chat.js</tspan></text>
+  <text x="84" y="754" class="title">Chat engine<tspan dx="10" class="code-title" fill="#f4f5f6">lib/chat.js</tspan></text>
   <text x="84" y="784" class="text">One agent process per chat · queues your messages</text>
   <text x="84" y="810" class="text">History pages · /clear · broadcast to every device</text>
 
@@ -73,14 +73,14 @@
   <text x="338" y="853" class="wire-note">neutral events</text>
 
   <rect class="card" x="64" y="866" width="516" height="84" rx="9"/>
-  <text x="84" y="900" class="title">Adapter<tspan dx="10" class="code-title" fill="#45d1df">lib/agents/claude.js</tspan></text>
+  <text x="84" y="900" class="title">Adapter<tspan dx="10" class="code-title" fill="#f4f5f6">lib/agents/claude.js</tspan></text>
   <text x="84" y="930" class="text">Translates Claude Code's stream-json ⇄ neutral events</text>
 
   <line class="wire" x1="322" y1="952" x2="322" y2="984" marker-start="url(#head)" marker-end="url(#head)"/>
   <text x="338" y="973" class="wire-note">JSON lines · stdin / stdout</text>
 
-  <rect class="card" x="64" y="986" width="516" height="110" rx="9" stroke="#45d1df" stroke-opacity="0.45"/>
-  <text x="84" y="1020" class="title">Agent<tspan dx="10" class="code-title" fill="#45d1df">claude -p</tspan><tspan dx="8" class="small">(Claude Code)</tspan></text>
+  <rect class="card" x="64" y="986" width="516" height="110" rx="9" stroke="#f4f5f6" stroke-opacity="0.45"/>
+  <text x="84" y="1020" class="title">Agent<tspan dx="10" class="code-title" fill="#f4f5f6">claude -p</tspan><tspan dx="8" class="small">(Claude Code)</tspan></text>
   <text x="84" y="1050" class="text">Reads and edits files, runs commands, uses the VPN</text>
   <text x="84" y="1076" class="text">and local network — the real work happens here</text>
 
@@ -96,7 +96,7 @@
   <line class="wire" x1="582" y1="790" x2="602" y2="790" marker-end="url(#head)"/>
   <rect class="card" x="604" y="760" width="232" height="132" rx="9"/>
   <text x="622" y="792" class="side-title">History on disk</text>
-  <text x="622" y="816" class="code">~/.megabrain/</text>
+  <text x="622" y="816" class="code">~/.mothership/</text>
   <text x="622" y="844" class="small">one log per chat,</text>
   <text x="622" y="866" class="small">images, usage limits</text>
 
@@ -106,8 +106,8 @@
 
   <!-- 4 · AI provider -->
   <rect class="band" x="40" y="1190" width="820" height="128" rx="12"/>
-  <rect x="40" y="1190" width="5" height="128" rx="2" fill="#ff8a65"/>
-  <text x="64" y="1222" class="head" fill="#ff8a65">4<tspan dx="12">AI PROVIDER</tspan></text>
+  <rect x="40" y="1190" width="5" height="128" rx="2" fill="#b9bcc2"/>
+  <text x="64" y="1222" class="head" fill="#b9bcc2">4<tspan dx="12">AI PROVIDER</tspan></text>
   <text x="64" y="1258" class="title">Anthropic — Claude models (Fable · Opus · Sonnet · Haiku)</text>
   <text x="64" y="1292" class="text">Thinks and writes the replies; every tool it asks for runs back on the Mac.</text>
 
