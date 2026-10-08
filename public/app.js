@@ -22,7 +22,7 @@ const state = {
   status: 'idle',
   queue: [],
   limits: null, // { status, windows: [{ id, label, utilization, resetsAt }], updated }
-  phase: { phase: 'thinking', label: 'Thinking' },
+  phase: {}, // what the working indicator shows: { phase, label, moment }
   opening: null, // { chatId, buffer } until the history arrives
   attachments: [], // { id, name, mediaType, preview, uploading, file, url }
   sends: new Map(), // ref -> what was sent, to restore it on error
@@ -914,8 +914,8 @@ function applyStatus(status, queue) {
   if (status === 'running' && !loader) {
     loader = createLoader();
     $('#loader-slot').append(loader.el);
-    state.phase = { phase: 'thinking', label: 'Thinking' };
-    loader.update(state.phase);
+    state.phase = {};
+    sayPhase('thinking', 'thinking');
   } else if (status !== 'running' && loader) {
     loader.destroy();
     loader = null;
@@ -924,21 +924,38 @@ function applyStatus(status, queue) {
   updateSend();
 }
 
+// What the indicator says, in the app's theme. Each moment has a few
+// phrasings: one is picked when the moment starts and kept while it lasts
+// (an agent starts several blocks in a row), so the label doesn't flicker.
+const PHRASES = {
+  thinking: ['Plotting a course', 'Scanning the horizon', 'Running the numbers', 'Charting the route'],
+  writing: ['Transmitting', 'Sending the dispatch', 'Downlinking'],
+  reading: ['Reading telemetry', 'Debriefing', 'Checking the instruments'],
+};
+
 function setPhase(phase, label) {
   state.phase = { phase, label };
   loader?.update(state.phase);
 }
 
+// moment: a PHRASES key; phase: the indicator's animation (loader.js).
+function sayPhase(phase, moment) {
+  if (state.phase.moment === moment) return;
+  const list = PHRASES[moment];
+  state.phase = { phase, label: list[Math.floor(Math.random() * list.length)], moment };
+  loader?.update(state.phase);
+}
+
 function livePhase(ev) {
   if (ev.t !== 'start') return;
-  if (ev.kind === 'thinking') setPhase('thinking', 'Thinking');
-  else if (ev.kind === 'text') setPhase('writing', 'Writing');
-  else if (ev.kind === 'tool_use') setPhase('tool', `Using ${ev.name}`);
+  if (ev.kind === 'thinking') sayPhase('thinking', 'thinking');
+  else if (ev.kind === 'text') sayPhase('writing', 'writing');
+  else if (ev.kind === 'tool_use') setPhase('tool', `Arming ${ev.name}`);
 }
 
 function itemPhase(item) {
-  if (item.t === 'block' && item.block.type === 'tool_use') setPhase('tool', `Running ${item.block.name}`);
-  else if (item.t === 'tool_result') setPhase('thinking', 'Reading the result');
+  if (item.t === 'block' && item.block.type === 'tool_use') setPhase('tool', `Deploying ${item.block.name}`);
+  else if (item.t === 'tool_result') sayPhase('thinking', 'reading');
 }
 
 function renderQueue() {

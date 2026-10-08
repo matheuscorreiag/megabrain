@@ -208,6 +208,7 @@ export function setupSidebar(key) {
   const local = storage('ui');
   if (local.get(key, false)) document.body.classList.add('sidebar-collapsed');
   setupResize(local);
+  setupBrand();
   setupShare();
   const setDrawer = (open) => document.body.classList.toggle('sidebar-open', open);
   $('#scrim').addEventListener('click', () => setDrawer(false));
@@ -220,14 +221,30 @@ export function setupSidebar(key) {
   };
 }
 
+// The app's mark and name, first in the sidebar's top row (the toggle is at
+// its other end): the flying wing of the app icon (macos/AppIcon.svg, its 1024
+// grid), lit half and shaded half.
+const MARK = `<svg viewBox="100 318 824 390" aria-hidden="true">
+  <path class="lit" d="M512 330 L912 590 L896 612 L776 690 L648 607 L512 695 Z"/>
+  <path class="shade" d="M512 330 L512 695 L376 607 L248 690 L128 612 L112 590 Z"/>
+</svg>`;
+
+function setupBrand() {
+  $('.brand-row').prepend(h('span', { class: 'brand' }, h('span', { class: 'brand-mark', innerHTML: MARK }), h('span', { class: 'brand-name', textContent: 'Mothership' })));
+}
+
 // Dragging the sidebar's right edge sets its width (--side-w), shared by both
 // pages; double-click goes back to the default. Desktop only (base.css).
+// The narrowest it gets fits its top row whole: the mark and name, Share, the
+// status dot and the toggle (263px with the app's fonts).
+const SIDE_MIN = 264;
+
 function setupResize(local) {
   const root = document.documentElement;
   let width = local.get('sidebarWidth', null);
   const apply = () => {
     if (!width) return root.style.removeProperty('--side-w');
-    root.style.setProperty('--side-w', `${Math.round(Math.max(200, Math.min(width, 520, innerWidth - 360)))}px`);
+    root.style.setProperty('--side-w', `${Math.round(Math.max(SIDE_MIN, Math.min(width, 520, innerWidth - 360)))}px`);
   };
   apply();
   window.addEventListener('resize', apply);

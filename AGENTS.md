@@ -25,9 +25,17 @@ owner's subscription — no API key, no Agent SDK). The UI must stay
 
 ## Product rules (from the owner)
 
-- **No names or branding in the UI.** No product name, no "Claude", no logo
-  text. Tab titles are the chat/terminal title, the page is "New chat",
-  "Shortcuts" or "Terminal".
+- **Branding only at the top of the sidebar.** The app's mark and name,
+  "Mothership", come first in the sidebar's top row on both pages
+  (`setupBrand()` in ui.js), with Share, the status dot and the sidebar's
+  toggle at the row's right end — the owner asked for that order. Nowhere else: no "Claude" or
+  agent names, tab titles are the chat/terminal title, the page is "New
+  chat", "Shortcuts" or "Terminal".
+- **Monochrome identity.** The mark (a B-2-like flying wing), the favicon, the
+  menu-bar glyph and the working indicator are black, white and gray,
+  geometric, Linear-like — never the chat's accent. The indicator's words
+  follow the theme too (`PHRASES` in app.js: "Plotting a course",
+  "Transmitting", "Arming Bash", "Deploying Bash", "Reading telemetry"…).
 - **English UI**, everywhere (server error messages too). The owner talks to
   agents in Portuguese; the app itself is English.
 - **Always dark.** Only the hue changes: each chat (and terminal) has its own
@@ -38,9 +46,9 @@ owner's subscription — no API key, no Agent SDK). The UI must stay
 - **Tailscale stays** as the network layer. Exposing the app publicly with a
   homemade token was discussed and rejected: the agent runs with
   `--dangerously-skip-permissions` on a machine inside the office network.
-- Minimal chrome: no header bar. The sidebar toggle sits inside the sidebar
-  when open and floats top-left when closed; the connection status is just a
-  dot next to it. The agent's folder, model and usage live in a status line
+- Minimal chrome: no header bar. The sidebar toggle sits at the right end of
+  the sidebar's top row when open and floats top-left when closed; the
+  connection status is just a dot next to it. The agent's folder, model and usage live in a status line
   under the composer — not the chat's name (the owner dropped it; the sidebar
   shows which chat is open).
 - Look: Instrument Sans for text, Martian Mono for labels, code and readouts
@@ -243,7 +251,7 @@ to a generic card.
   missed lazy images loading just above the screen.
 - The sidebar's width is `--side-w` (base.css). Dragging its right edge
   (`setupResize()` in ui.js, desktop only) overrides it on `<html>`, clamped to
-  200–520px, and saves it in localStorage `ui:sidebarWidth` for both pages.
+  264–520px (264: the top row — mark, name, Share, dot, toggle — fits whole), and saves it in localStorage `ui:sidebarWidth` for both pages.
   Size sidebar content against `--side-w`, never a fixed 272px.
 - Shortcuts are one table per page (chat: `SHORTCUTS` in `app.js`, also drives
   the Shortcuts screen). Chat: ⌘1–9, ⌘B, ⌘J, ⌘K, ⌘/, ⇧⌘E rename, ⇧⌘D delete

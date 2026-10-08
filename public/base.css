@@ -218,10 +218,44 @@ body.resizing {
   transition: none;
 }
 
-/* Same spot as the floating #open-sidebar, so the toggle doesn't jump. */
+/* The sidebar's top row: the app's mark and name first, then (pushed to the
+   right) Share, the status dot and the toggle that hides the sidebar. */
 .brand-row {
   display: flex;
   align-items: center;
+  min-width: 0; /* if it's ever short of room, the name gives way, not the buttons */
+}
+/* The app's mark and name (ui.js setupBrand), in grays like the icon; the mark
+   lines up with the New chat / terminal button's icon below. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin: 0 8px 0 9px;
+  color: var(--text);
+  font: 600 15px/1 var(--sans);
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+.brand-mark {
+  display: flex;
+  flex-shrink: 0;
+}
+.brand-mark svg {
+  width: 24px;
+  height: 12px;
+}
+.brand-mark .lit {
+  fill: #eceef0;
+}
+.brand-mark .shade {
+  fill: #868b93;
+}
+.brand-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Sidebar buttons: New chat / terminal, Shortcuts, Files, Terminal / Chats */
