@@ -110,14 +110,18 @@ browser ──HTTPS──► tailscale serve ──► server.js (127.0.0.1:7680
   (the next message starts a new session, no `--resume`), `events.jsonl` moves
   to `events-<ts>.jsonl` in the chat's folder (kept, not shown) and watchers
   get `{ op: 'cleared' }` plus a "Conversation cleared" note. Queued behind a
-  running turn, it waits its turn like a message.
+  running turn, it waits its turn like a message. The folder stays: the agent's
+  current folder (asked afresh, `workingDir()`) becomes the chat's `dir`, so
+  the new session and every process after it start there — the owner doesn't
+  want `/clear` to send the agent back to where the chat began.
 - Messages sent while a turn runs go to an in-memory **queue**; one socket's
   messages are processed in order (so "stop" can't overtake "send").
 - Per chat meta (`meta.json`): title, hue, sessionId, model, modelLabel,
   context `{ used, window }`, settings `{ model, effort }` (null = default),
   dir (where its agent starts — a terminal's "New chat in this folder", which
-  opens `/?dir=<folder>`; absent = `agent.cwd`; every process of the chat
-  starts there, as `--resume` finds sessions by folder),
+  opens `/?dir=<folder>`, or where the agent was at its last `/clear`; absent
+  = `agent.cwd`; every process of a session starts there, as `--resume` finds
+  sessions by folder),
   cwd (the agent's folder now; Claude: the last `cwd` stamp in its own
   session log, `~/.claude/projects/*/<sessionId>.jsonl` — the stream only
   reports the starting one), pinned (its place in Pinned, from 1; absent =
